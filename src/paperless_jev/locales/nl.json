@@ -447,5 +447,16 @@
  "Schwellwerte für das lokale Modell «{model}» – lokale Modelle melden tiefere Confidence-Werte als Jev und haben darum eigene Schwellwerte. Die von Jev bleiben gespeichert. Beispiel-Titel und ähnliche Dokumente werden bei lokalen Modellen nicht mitgeschickt.": "Drempelwaarden voor het lokale model «{model}» – lokale modellen melden lagere zekerheidswaarden dan Jev en hebben daarom eigen drempelwaarden. Die van Jev blijven behouden. Voorbeeldtitels en vergelijkbare documenten worden niet naar lokale modellen gestuurd.",
  "Dokument gibt es in Paperless nicht mehr (gelöscht oder im Papierkorb)": "Het document bestaat niet meer in Paperless (verwijderd of in de prullenbak)",
  "Das Dokument wurde in Paperless gelöscht (Papierkorb). Dieser Eintrag ist nur noch Protokoll – in Paperless lässt es sich aus dem Papierkorb wiederherstellen.": "Het document is verwijderd in Paperless (prullenbak). Dit item is nu alleen nog een registratie – in Paperless kan het uit de prullenbak worden hersteld.",
- "Quellcode": "Broncode"
+ "Quellcode": "Broncode",
+ "Jev über das eigene Cloudflare-Konto, abgerechnet von Cloudflare": "Jev via je eigen Cloudflare-account, gefactureerd door Cloudflare",
+ "Eigener Anbieter": "Eigen aanbieder",
+ "Beliebiger Server mit dem Endpunkt /v1/systemone, optional mit API-Key": "elke server met het endpoint /v1/systemone, optioneel met API-sleutel",
+ "optional, wird als Bearer-Token gesendet": "optioneel, wordt als bearer-token verzonden",
+ "Konto-ID": "Account-ID",
+ "Token mit Workers-AI-Berechtigung": "token met Workers AI-rechten",
+ "Modell: <code>typesafe/jev</code>. Leere Felder fallen auf <code>CLOUDFLARE_ACCOUNT_ID</code> und <code>CLOUDFLARE_API_TOKEN_FILE</code> aus der Umgebung zurück.": "Model: <code>typesafe/jev</code>. Lege velden vallen terug op <code>CLOUDFLARE_ACCOUNT_ID</code> en <code>CLOUDFLARE_API_TOKEN_FILE</code> uit de omgeving.",
+ "Token-Datei aus der Umgebung gefunden.": "Tokenbestand gevonden in de omgeving.",
+ "Server-URL oder Modell fehlt": "Server-URL of model ontbreekt",
+ "Keine Cloudflare-Konto-ID konfiguriert": "Geen Cloudflare-account-ID ingesteld",
+ "Kein Cloudflare-API-Token konfiguriert": "Geen Cloudflare API-token ingesteld"
 }

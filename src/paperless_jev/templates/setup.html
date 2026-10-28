@@ -6,15 +6,31 @@
   <header><strong>{{ _("Klassifizierung") }}</strong></header>
   <form method="post" action="/setup/typesafe">
     <fieldset class="clf-choice">
-      <label><input type="radio" name="classifier_kind" value="typesafe"{% if cfg.classifier != "ollama" %} checked{% endif %}> <strong>TypeSafe Jev</strong> – {{ _("Cloud, schnell, kostet wenig pro Dokument") }}</label>
+      <label><input type="radio" name="classifier_kind" value="typesafe"{% if cfg.classifier not in ("cloudflare", "ollama", "custom") %} checked{% endif %}> <strong>TypeSafe Jev</strong> – {{ _("Cloud, schnell, kostet wenig pro Dokument") }}</label>
+      <label><input type="radio" name="classifier_kind" value="cloudflare"{% if cfg.classifier == "cloudflare" %} checked{% endif %}> <strong>Cloudflare Workers AI</strong> – {{ _("Jev über das eigene Cloudflare-Konto, abgerechnet von Cloudflare") }}</label>
       <label><input type="radio" name="classifier_kind" value="ollama"{% if cfg.classifier == "ollama" %} checked{% endif %}> <strong>{{ _("Lokal über Ollama") }}</strong> – {{ _("Ollama oder ein anderer System-One-kompatibler Server, z. B. clef oder Decision-1.0-Lux; Dokumente verlassen das Netz nicht, braucht eine starke GPU") }}</label>
+      <label><input type="radio" name="classifier_kind" value="custom"{% if cfg.classifier == "custom" %} checked{% endif %}> <strong>{{ _("Eigener Anbieter") }}</strong> – {{ _("Beliebiger Server mit dem Endpunkt /v1/systemone, optional mit API-Key") }}</label>
     </fieldset>
-    <div class="clf-ollama">
+    <div class="clf-section clf-ollama clf-custom">
       <label>{{ _("Server-URL") }}<input name="classifier_url" value="{{ cfg.classifier_url }}" placeholder="http://192.168.0.16:11434"></label>
       <label>{{ _("Modell") }}<input name="classifier_model" value="{{ cfg.classifier_model }}" placeholder="clef">
         <small>{{ _("Das Modell muss den Endpunkt /v1/systemone unterstützen (Fähigkeit «decision»). Lokale Modelle melden andere Confidence-Werte als Jev – Schwellwerte unter Regeln prüfen.") }}</small></label>
     </div>
-    <div class="clf-typesafe">
+    <div class="clf-section clf-custom">
+      <label>{{ _("API-Key") }} {% if has_custom_key %}<small class="good">{{ _("(gespeichert – leer lassen, um ihn zu behalten)") }}</small>{% endif %}
+        <input type="password" name="classifier_api_key" autocomplete="off" placeholder="{{ _('gespeichert') if has_custom_key else _('optional, wird als Bearer-Token gesendet') }}">
+      </label>
+    </div>
+    <div class="clf-section clf-cloudflare">
+      <label>{{ _("Konto-ID") }}
+        <input name="cloudflare_account_id" value="{{ cfg.cloudflare_account_id }}" placeholder="{{ cloudflare_env.account or '' }}">
+      </label>
+      <label>{{ _("API-Token") }} {% if has_cloudflare_token %}<small class="good">{{ _("(gespeichert – leer lassen, um ihn zu behalten)") }}</small>{% endif %}
+        <input type="password" name="cloudflare_api_token" autocomplete="off" placeholder="{{ _('gespeichert') if has_cloudflare_token else _('Token mit Workers-AI-Berechtigung') }}">
+        <small>{{ _("Modell: <code>typesafe/jev</code>. Leere Felder fallen auf <code>CLOUDFLARE_ACCOUNT_ID</code> und <code>CLOUDFLARE_API_TOKEN_FILE</code> aus der Umgebung zurück.")|safe }}{% if cloudflare_env.token_file %} <span class="good">{{ _("Token-Datei aus der Umgebung gefunden.") }}</span>{% endif %}</small>
+      </label>
+    </div>
+    <div class="clf-section clf-typesafe">
     <label>{{ _("API-Key") }} {% if has_key %}<small class="good">{{ _("(gespeichert – leer lassen, um ihn zu behalten)") }}</small>{% endif %}
       <input type="password" name="api_key" autocomplete="off" placeholder="{{ _('gespeichert') if has_key else _('API-Key von console.typesafe.ai/keys') }}">
     </label>

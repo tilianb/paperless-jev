@@ -551,6 +551,17 @@ EN: dict[str, str] = {
     "Dokument gibt es in Paperless nicht mehr (gelöscht oder im Papierkorb)": "The document no longer exists in Paperless (deleted or in the trash)",
     "Das Dokument wurde in Paperless gelöscht (Papierkorb). Dieser Eintrag ist nur noch Protokoll – in Paperless lässt es sich aus dem Papierkorb wiederherstellen.":
         "The document was deleted in Paperless (trash). This entry is only a record now – in Paperless it can be restored from the trash.",
+    "Jev über das eigene Cloudflare-Konto, abgerechnet von Cloudflare": "Jev through your own Cloudflare account, billed by Cloudflare",
+    "Eigener Anbieter": "Custom provider",
+    "Beliebiger Server mit dem Endpunkt /v1/systemone, optional mit API-Key": "any server with the /v1/systemone endpoint, optionally with an API key",
+    "optional, wird als Bearer-Token gesendet": "optional, sent as a bearer token",
+    "Konto-ID": "Account ID",
+    "Token mit Workers-AI-Berechtigung": "token with Workers AI permission",
+    "Modell: <code>typesafe/jev</code>. Leere Felder fallen auf <code>CLOUDFLARE_ACCOUNT_ID</code> und <code>CLOUDFLARE_API_TOKEN_FILE</code> aus der Umgebung zurück.": "Model: <code>typesafe/jev</code>. Empty fields fall back to <code>CLOUDFLARE_ACCOUNT_ID</code> and <code>CLOUDFLARE_API_TOKEN_FILE</code> from the environment.",
+    "Token-Datei aus der Umgebung gefunden.": "Token file found in the environment.",
+    "Server-URL oder Modell fehlt": "Server URL or model missing",
+    "Keine Cloudflare-Konto-ID konfiguriert": "No Cloudflare account ID configured",
+    "Kein Cloudflare-API-Token konfiguriert": "No Cloudflare API token configured",
 }
 
 LOCALES = Path(__file__).parent / "locales"
