@@ -143,6 +143,21 @@ everywhere – for wrong answers as well (correspondent 36 instead of 38 right, 
 of 0, 46 instead of 34 wrong tag suggestions). clef's confidence depends on the wording; don't set its thresholds
 too tight.
 
+## Cloudflare and custom providers
+
+`classifier()` in `jev.py` picks the client from the *Setup* choice. **Cloudflare** posts
+`{"model": "typesafe/jev", "input": {"state", "questions"}}` to
+`/client/v4/accounts/{account}/ai/run` and unwraps the Workers AI envelope (`result`, and `result.result` once
+`state` is `Completed`). A result with `success: false`, missing answers or a tag probability outside 0–1 raises
+`JevError`, so the job fails instead of completing the document. Credentials come from the stored settings, else
+`CLOUDFLARE_ACCOUNT_ID` and the file named by `CLOUDFLARE_API_TOKEN_FILE`. **Custom** is a plain System-One
+client for `classifier_url` with an optional bearer key – without Ollama's question splitting, tournament or
+`keep_alive`. Both use Jev's thresholds.
+
+With a **queue tag** (`poll_tag`), polling asks Paperless only for documents carrying that tag instead of the
+inbox, and `apply()` removes it whether the document is finished or goes to review. **System tags** are added to
+the excluded tags: they are neither asked about nor checked when verifying existing tags.
+
 ## Log
 
 By default the log shows only open entries (review, dry runs, errors, queued); filters by status, document type,

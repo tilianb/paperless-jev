@@ -129,6 +129,7 @@ Everything else is configured in the web UI. The environment only covers:
 | `PJ_LOG_LEVEL` | `INFO` | Log level |
 | `PJ_DATA_DIR` | `/data` | Data directory (SQLite, key) |
 | `TZ` | `Europe/Zurich` | Time zone for display |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN_FILE` | – | Optional fallback for the Cloudflare provider when its Setup fields are empty; the token is read from a file, e.g. a Docker secret. |
 
 **Back up `/data`** – `paperless-jev.db` and `secret.key` belong together, otherwise the stored tokens can no longer be read.
 
@@ -172,10 +173,30 @@ models get plain criteria without example titles and their own thresholds.
 On simple made-up documents clef is on par; on real documents with many tags Jev is clearly ahead.
 Run your own: `python -m bench.run --jev --ollama http://<host>:11434` (see [`bench/`](bench/)).
 
+## Other providers
+
+*Setup → Classification* also offers:
+
+- **Cloudflare Workers AI** – Cloudflare serves the same Jev model as `typesafe/jev` and bills it to your
+  Cloudflare account. Enter the account ID and an API token with Workers AI permission. To keep the token out
+  of the database, leave the fields empty and set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN_FILE`
+  instead. Incomplete or invalid Workers AI results fail the job, so a document is never completed with
+  missing answers.
+- **Custom provider** – any server with the `/v1/systemone` endpoint, with URL, model and an optional API key
+  sent as a bearer token.
+
+### Handing off from another tool
+
+To let another tool (e.g. paperless-gpt for OCR and titles) finish first, have it add a tag such as
+`jev-pending` and set that as the *queue tag* under *Rules → Status tags*. Jev then polls only documents with
+that tag and removes it afterwards. List the other tool's own tags under *system tags* so Jev never suggests or
+checks them.
+
 ## Privacy and cost
 
 - The shortened OCR text and the names of your metadata are sent to `api.typesafe.ai`. According to its
   documentation, TypeSafe does not train on customer data. Documents tagged `ai-ignorieren` are never sent.
+- With Cloudflare Workers AI the same data goes to Cloudflare instead.
 - With a local model via Ollama (e.g. clef) everything stays in your own network.
 - The optional language model runs on your own hardware (Ollama, SGLang, vLLM, LM Studio …).
 - jev-1.13 costs USD 0.042 per million input tokens. A document takes roughly 5–15k tokens, depending on

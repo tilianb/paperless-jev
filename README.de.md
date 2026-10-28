@@ -129,6 +129,7 @@ Alles Fachliche wird in der Web-UI eingestellt. Per Umgebung gibt es nur:
 | `PJ_LOG_LEVEL` | `INFO` | Log-Level |
 | `PJ_DATA_DIR` | `/data` | Datenverzeichnis (SQLite, Schlüssel) |
 | `TZ` | `Europe/Zurich` | Zeitzone für die Anzeige |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN_FILE` | – | Optionaler Ersatz für die Cloudflare-Felder unter Setup, wenn diese leer sind; das Token kommt aus einer Datei, z. B. einem Docker-Secret. |
 
 **`/data` sichern** – `paperless-jev.db` und `secret.key` gehören zusammen, sonst sind die gespeicherten Tokens nicht mehr lesbar.
 
@@ -173,10 +174,30 @@ werden direkt gefragt. Lokale Modelle bekommen einfache Kriterien ohne Beispiel-
 Mit einfachen, erfundenen Belegen ist clef gleichauf; bei echten Dokumenten mit vielen Tags liegt Jev klar vorne.
 Eigene Messung: `python -m bench.run --jev --ollama http://<host>:11434` (siehe [`bench/`](bench/)).
 
+## Weitere Anbieter
+
+Unter *Setup → Klassifizierung* stehen ausserdem bereit:
+
+- **Cloudflare Workers AI** – Cloudflare stellt dasselbe Jev-Modell als `typesafe/jev` bereit und rechnet es über
+  das eigene Cloudflare-Konto ab. Konto-ID und ein API-Token mit Workers-AI-Berechtigung eintragen. Soll das
+  Token nicht in der Datenbank liegen, die Felder leer lassen und `CLOUDFLARE_ACCOUNT_ID` und
+  `CLOUDFLARE_API_TOKEN_FILE` setzen. Unvollständige oder ungültige Antworten von Workers AI lassen den Job
+  fehlschlagen; ein Dokument wird nie mit fehlenden Antworten abgeschlossen.
+- **Eigener Anbieter** – ein beliebiger Server mit dem Endpunkt `/v1/systemone`, mit URL, Modell und optionalem
+  API-Key, der als Bearer-Token gesendet wird.
+
+### Übergabe von einem anderen Werkzeug
+
+Soll ein anderes Werkzeug (z. B. paperless-gpt für OCR und Titel) zuerst fertig werden, setzt es einen Tag wie
+`jev-pending`; diesen unter *Regeln → Tags für den Status* als *Warteschlangen-Tag* eintragen. Jev fragt dann nur
+Dokumente mit diesem Tag ab und entfernt ihn danach. Die eigenen Tags des Werkzeugs unter *System-Tags* eintragen,
+damit Jev sie nie vorschlägt oder prüft.
+
 ## Datenschutz und Kosten
 
 - Der gekürzte OCR-Text und die Namen deiner Stammdaten gehen an `api.typesafe.ai`. TypeSafe trainiert laut
   Doku nicht auf Kundendaten. Dokumente mit dem Tag `ai-ignorieren` werden nie gesendet.
+- Mit Cloudflare Workers AI gehen dieselben Daten stattdessen an Cloudflare.
 - Mit einem lokalen Modell über Ollama (z. B. clef) bleibt alles im eigenen Netz.
 - Das optionale Sprachmodell läuft bei dir (Ollama, SGLang, vLLM, LM Studio …).
 - jev-1.13 kostet 0.042 USD pro Mio. Input-Tokens. Ein Dokument liegt je nach Anzahl Tags und Beispielen

@@ -144,6 +144,22 @@ Die Fragen bleiben auch für clef englisch: Mit deutschen Fragen stieg die Confi
 statt 0, 46 statt 34 falsche Tag-Vorschläge). clefs Confidence hängt also an der Formulierung; die Schwellen nicht
 zu knapp setzen.
 
+## Cloudflare und eigene Anbieter
+
+`classifier()` in `jev.py` wählt den Client nach der Auswahl unter *Setup*. **Cloudflare** schickt
+`{"model": "typesafe/jev", "input": {"state", "questions"}}` an `/client/v4/accounts/{account}/ai/run` und packt die
+Workers-AI-Hülle aus (`result`, bei `state` `Completed` `result.result`). Ein Ergebnis mit `success: false`, fehlenden
+Antworten oder einer Tag-Wahrscheinlichkeit ausserhalb 0–1 löst `JevError` aus: Der Job schlägt fehl, statt das
+Dokument abzuschliessen. Zugangsdaten kommen aus den gespeicherten Einstellungen, sonst aus `CLOUDFLARE_ACCOUNT_ID`
+und der Datei unter `CLOUDFLARE_API_TOKEN_FILE`. **Eigener Anbieter** ist ein schlichter System-One-Client für
+`classifier_url` mit optionalem Bearer-Key – ohne Ollamas Aufteilen der Fragen, Turnier oder `keep_alive`. Beide
+verwenden die Schwellwerte von Jev.
+
+Mit einem **Warteschlangen-Tag** (`poll_tag`) fragt das Polling Paperless nur nach Dokumenten mit diesem Tag statt
+nach dem Posteingang, und `apply()` entfernt ihn, ob das Dokument fertig ist oder ins Review geht. **System-Tags**
+kommen zu den ausgeschlossenen Tags: Jev fragt nicht nach ihnen und prüft sie nicht beim Kontrollieren vorhandener
+Tags.
+
 ## Protokoll
 
 Standardmässig zeigt das Protokoll nur offene Einträge (Review, Probeläufe, Fehler, wartend); Filter nach Status,
