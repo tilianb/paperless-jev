@@ -149,8 +149,9 @@ def _parent_context(tid: int, meta: Metadata, descriptions: dict) -> str | None:
 def excluded_tags(meta: Metadata, cfg: dict[str, Any]) -> set[int]:
     """Tags, die Jev nie vorschlagen soll: Posteingang und die eigenen Status-Tags."""
     ids = set(meta.inbox_tags)
-    for key in ("tag_done", "tag_review", "tag_ignore"):
-        if (tid := meta.tag_id(cfg[key])) is not None:
+    names = [cfg[key] for key in ("tag_done", "tag_review", "tag_ignore")]
+    for name in [*names, *cfg.get("system_tags", [])]:
+        if (tid := meta.tag_id(name)) is not None:
             ids.add(tid)
     return ids
 

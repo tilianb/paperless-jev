@@ -70,6 +70,10 @@ DEFAULTS: dict[str, Any] = {
     "tag_done": "ai-klassifiziert",
     "tag_review": "ai-review",
     "tag_ignore": "ai-ignorieren",
+    # leer: Posteingang abfragen; sonst nur Dokumente mit diesem Tag (Übergabe von einem anderen Werkzeug)
+    "poll_tag": "",
+    # Tags anderer Werkzeuge, die Jev weder vorschlägt noch prüft
+    "system_tags": [],
     # off: Titel bleibt | template: aus Vorlage | llm: vom Sprachmodell formuliert
     "title_mode": "off",
     "title_template": "{document_type} {correspondent} {created:%Y-%m}",

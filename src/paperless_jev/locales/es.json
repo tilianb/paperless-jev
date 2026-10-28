@@ -458,5 +458,9 @@
  "Token-Datei aus der Umgebung gefunden.": "Archivo de token encontrado en el entorno.",
  "Server-URL oder Modell fehlt": "Falta la URL del servidor o el modelo",
  "Keine Cloudflare-Konto-ID konfiguriert": "No hay ningún ID de cuenta de Cloudflare configurado",
- "Kein Cloudflare-API-Token konfiguriert": "No hay ningún token de API de Cloudflare configurado"
+ "Kein Cloudflare-API-Token konfiguriert": "No hay ningún token de API de Cloudflare configurado",
+ "Warteschlangen-Tag": "Etiqueta de cola",
+ "Leer: Jev fragt den Posteingang ab. Sonst nur Dokumente mit diesem Tag, z. B. von einem vorgelagerten Werkzeug gesetzt; Jev entfernt ihn nach der Bearbeitung.": "Vacío: Jev consulta la bandeja de entrada. Si no, solo documentos con esta etiqueta, p. ej. puesta por una herramienta previa; Jev la quita tras procesarlos.",
+ "System-Tags": "Etiquetas del sistema",
+ "Kommagetrennt. Jev schlägt diese Tags nie vor und prüft sie nicht, z. B. Status-Tags anderer Werkzeuge.": "Separadas por comas. Jev nunca sugiere ni revisa estas etiquetas, p. ej. etiquetas de estado de otras herramientas."
 }

@@ -177,7 +177,12 @@ class Processor:
                 continue
             try:
                 async with self.client(inst) as pl:
-                    doc_ids = await pl.inbox_document_ids()
+                    if poll_tag := self.config.all().get("poll_tag"):
+                        meta = await self.metadata(inst, pl)
+                        tag_id = meta.tag_id(poll_tag)
+                        doc_ids = await pl.document_ids_with_tag(tag_id) if tag_id is not None else []
+                    else:
+                        doc_ids = await pl.inbox_document_ids()
             except PaperlessError as e:
                 log.warning("Polling %s fehlgeschlagen: %s", inst.name, e)
                 continue
@@ -345,6 +350,8 @@ class Processor:
                 data["title"] = title
         else:
             tags.add(review_tag)
+        if poll_tag := cfg.get("poll_tag"):
+            tags.discard(meta.tag_id(poll_tag))
         data["tags"] = sorted(tags)
         await pl.patch_document(doc["id"], data)
         return data

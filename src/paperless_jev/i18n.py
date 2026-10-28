@@ -562,6 +562,10 @@ EN: dict[str, str] = {
     "Server-URL oder Modell fehlt": "Server URL or model missing",
     "Keine Cloudflare-Konto-ID konfiguriert": "No Cloudflare account ID configured",
     "Kein Cloudflare-API-Token konfiguriert": "No Cloudflare API token configured",
+    "Warteschlangen-Tag": "Queue tag",
+    "Leer: Jev fragt den Posteingang ab. Sonst nur Dokumente mit diesem Tag, z. B. von einem vorgelagerten Werkzeug gesetzt; Jev entfernt ihn nach der Bearbeitung.": "Empty: Jev polls the inbox. Otherwise only documents with this tag, e.g. set by an upstream tool; Jev removes it after processing.",
+    "System-Tags": "System tags",
+    "Kommagetrennt. Jev schlägt diese Tags nie vor und prüft sie nicht, z. B. Status-Tags anderer Werkzeuge.": "Comma-separated. Jev never suggests or checks these tags, e.g. status tags of other tools.",
 }
 
 LOCALES = Path(__file__).parent / "locales"

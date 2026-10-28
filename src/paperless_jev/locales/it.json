@@ -458,5 +458,9 @@
  "Token-Datei aus der Umgebung gefunden.": "File del token trovato nell’ambiente.",
  "Server-URL oder Modell fehlt": "URL del server o modello mancante",
  "Keine Cloudflare-Konto-ID konfiguriert": "Nessun ID account Cloudflare configurato",
- "Kein Cloudflare-API-Token konfiguriert": "Nessun token API Cloudflare configurato"
+ "Kein Cloudflare-API-Token konfiguriert": "Nessun token API Cloudflare configurato",
+ "Warteschlangen-Tag": "Tag di coda",
+ "Leer: Jev fragt den Posteingang ab. Sonst nur Dokumente mit diesem Tag, z. B. von einem vorgelagerten Werkzeug gesetzt; Jev entfernt ihn nach der Bearbeitung.": "Vuoto: Jev interroga la posta in arrivo. Altrimenti solo i documenti con questo tag, ad es. impostato da uno strumento a monte; Jev lo rimuove dopo l’elaborazione.",
+ "System-Tags": "Tag di sistema",
+ "Kommagetrennt. Jev schlägt diese Tags nie vor und prüft sie nicht, z. B. Status-Tags anderer Werkzeuge.": "Separati da virgole. Jev non suggerisce né verifica mai questi tag, ad es. i tag di stato di altri strumenti."
 }

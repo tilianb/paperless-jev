@@ -458,5 +458,9 @@
  "Token-Datei aus der Umgebung gefunden.": "Fichier de jeton trouvé dans l’environnement.",
  "Server-URL oder Modell fehlt": "URL du serveur ou modèle manquant",
  "Keine Cloudflare-Konto-ID konfiguriert": "Aucun ID de compte Cloudflare configuré",
- "Kein Cloudflare-API-Token konfiguriert": "Aucun jeton d’API Cloudflare configuré"
+ "Kein Cloudflare-API-Token konfiguriert": "Aucun jeton d’API Cloudflare configuré",
+ "Warteschlangen-Tag": "Étiquette de file d’attente",
+ "Leer: Jev fragt den Posteingang ab. Sonst nur Dokumente mit diesem Tag, z. B. von einem vorgelagerten Werkzeug gesetzt; Jev entfernt ihn nach der Bearbeitung.": "Vide : Jev interroge la boîte de réception. Sinon, uniquement les documents portant cette étiquette, p. ex. posée par un outil en amont ; Jev la retire après traitement.",
+ "System-Tags": "Étiquettes système",
+ "Kommagetrennt. Jev schlägt diese Tags nie vor und prüft sie nicht, z. B. Status-Tags anderer Werkzeuge.": "Séparées par des virgules. Jev ne propose ni ne vérifie jamais ces étiquettes, p. ex. les étiquettes d’état d’autres outils."
 }
