@@ -6,6 +6,10 @@ Classifies new documents in the [Paperless-ngx](https://docs.paperless-ngx.com/)
 [TypeSafe Jev](https://docs.typesafe.ai/introduction): document type, correspondent, storage path,
 issue date and tags – or locally with [clef](https://ollama.com/library/clef) via Ollama. Runs as a Docker container and is configured entirely through a web UI.
 
+This fork adds [native Cloudflare Jev inference and a scoped tagging handoff](docs/cloudflare.md)
+for use alongside Paperless-GPT. It keeps the upstream TypeSafe and Ollama backends.
+The fork runs tests on main pushes; image publishing remains restricted to upstream.
+
 ![Overview](docs/screenshots/uebersicht-en.png)
 
 | Review (desktop) | Dark mode |

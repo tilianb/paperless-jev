@@ -28,7 +28,7 @@ jobs:
 
   image:
     needs: test
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'PenDraga/paperless-jev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

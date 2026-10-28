@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -44,6 +45,15 @@ class JevClient:
         self, api_key: str | None, timeout: float = 60.0, base_url: str | None = None,
         max_questions: int | None = None, keep_alive: str | None = None, max_choices: int | None = None,
     ) -> None:
+        self.cloudflare_account = os.environ.get("CLOUDFLARE_ACCOUNT_ID") if base_url is None else None
+        if self.cloudflare_account:
+            try:
+                api_key = Path(os.environ["CLOUDFLARE_API_TOKEN_FILE"]).read_text().strip()
+            except (KeyError, OSError):
+                raise JevError("Cloudflare API token file is missing or unreadable") from None
+            if not api_key:
+                raise JevError("Cloudflare API token file is empty")
+            base_url = "https://api.cloudflare.com"
         self._http = httpx.AsyncClient(
             base_url=(base_url or BASE_URL).rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
@@ -54,7 +64,7 @@ class JevClient:
         self.base_url = (base_url or BASE_URL).rstrip("/")
         self.adaptive = False  # max_choices erst nach einer Ablehnung durch den Server
         self.keep_alive = keep_alive
-        self.name = "Ollama" if base_url else "TypeSafe"
+        self.name = "Cloudflare" if self.cloudflare_account else "Ollama" if base_url else "TypeSafe"
 
     async def __aenter__(self) -> JevClient:
         return self
@@ -142,15 +152,35 @@ class JevClient:
         payload: dict[str, Any] = {"state": state, "model": model, "questions": questions}
         if self.keep_alive:
             payload["keep_alive"] = self.keep_alive
+        path = "/v1/systemone"
+        if self.cloudflare_account:
+            path = f"/client/v4/accounts/{self.cloudflare_account}/ai/run"
+            payload = {"model": "typesafe/jev", "input": {"state": state, "questions": questions}}
         delay = 1.0
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                resp = await self._http.post("/v1/systemone", json=payload)
+                resp = await self._http.post(path, json=payload)
             except httpx.HTTPError as e:
                 if attempt == MAX_ATTEMPTS:
                     raise JevError(f"{self.name} nicht erreichbar: {e}") from e
             else:
                 if resp.status_code < 400:
+                    if self.cloudflare_account:
+                        data = resp.json()
+                        if data.get("success") is False:
+                            raise JevError("Cloudflare reported an unsuccessful inference")
+                        data = data.get("result", data)
+                        if data.get("state") == "Completed":
+                            data = data.get("result", {})
+                        answers = data.get("answers", {})
+                        if set(answers) != set(questions):
+                            raise JevError("Cloudflare returned an incomplete inference")
+                        for key, question in questions.items():
+                            if question["type"] == "noul":
+                                value = answers[key].get("noul")
+                                if not isinstance(value, (int, float)) or not 0 <= value <= 1:
+                                    raise JevError("Cloudflare returned an invalid tag probability")
+                        return data
                     return resp.json()
                 if resp.status_code == 400 and "candidates" in resp.text:
                     raise TooManyCandidates(f"{self.name} HTTP 400: {resp.text[:500]}")
@@ -164,6 +194,8 @@ class JevClient:
         raise JevError(f"{self.name}: keine Antwort")
 
     async def models(self) -> list[str]:
+        if self.cloudflare_account:
+            return ["typesafe/jev"]
         resp = await self._http.get("/v1/models")
         if resp.status_code >= 400:
             raise JevError(f"TypeSafe HTTP {resp.status_code}: {resp.text[:300]}")
@@ -178,6 +210,8 @@ def classifier(cfg: dict[str, Any], timeout: float | None = None) -> tuple[JevCl
                            max_questions=OLLAMA_MAX_QUESTIONS, keep_alive="30m", max_choices=OLLAMA_MAX_CHOICES)
         client.adaptive = True
         return client, cfg["classifier_model"]
+    if os.environ.get("CLOUDFLARE_ACCOUNT_ID"):
+        return JevClient(None, timeout=timeout or 60.0), "typesafe/jev"
     return JevClient(cfg["typesafe_api_key"], timeout=timeout or 60.0), cfg["model"]
 
 
@@ -185,4 +219,7 @@ def classifier_missing(cfg: dict[str, Any]) -> str | None:
     """Grund, warum noch nicht klassifiziert werden kann (sonst None)."""
     if cfg.get("classifier") == "ollama":
         return None if cfg.get("classifier_url") and cfg.get("classifier_model") else "Ollama-URL oder Modell fehlt"
+    if os.environ.get("CLOUDFLARE_ACCOUNT_ID"):
+        token_file = os.environ.get("CLOUDFLARE_API_TOKEN_FILE")
+        return None if token_file and Path(token_file).is_file() else "Cloudflare API token file is missing"
     return None if cfg.get("typesafe_api_key") else "Kein TypeSafe-API-Key konfiguriert"
