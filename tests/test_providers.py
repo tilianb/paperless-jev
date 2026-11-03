@@ -111,3 +111,44 @@ def test_setup_saves_provider_and_keeps_secrets(tmp_path, monkeypatch):
     assert "cf-secret" not in stored["cloudflare_api_token"]
     assert 'value="cloudflare" checked' in page
     assert "Token file found" not in page
+
+
+@pytest.mark.parametrize("settings,env_credentials,has_instance,warning", [
+    ({"classifier": "cloudflare"}, True, True, None),
+    (cloudflare_cfg(), False, True, None),
+    ({"classifier": "ollama", "classifier_url": "http://ollama", "classifier_model": "clef"}, False, True, None),
+    ({"classifier": "custom", "classifier_url": "http://custom", "classifier_model": "jev"}, False, True, None),
+    ({"classifier": "typesafe", "typesafe_api_key": "test-key"}, False, True, None),
+    ({"classifier": "cloudflare", "cloudflare_account_id": "acct", "typesafe_api_key": "unused-key"},
+     False, True, "No Cloudflare API token configured"),
+    ({"classifier": "typesafe"}, False, True, "No TypeSafe API key configured"),
+    (cloudflare_cfg(), False, False, "First create an instance"),
+])
+def test_dashboard_setup_warning_matches_selected_provider(tmp_path, monkeypatch, settings, env_credentials, has_instance, warning):
+    from paperless_jev.paperless import PaperlessClient
+
+    monkeypatch.setattr(app_module, "DATA_DIR", tmp_path)
+    if env_credentials:
+        token_file = tmp_path / "cloudflare-token"
+        token_file.write_text("test-token\n")
+        monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "env-account")
+        monkeypatch.setenv("CLOUDFLARE_API_TOKEN_FILE", str(token_file))
+
+    def paperless_client(inst):
+        client = PaperlessClient(inst.url, inst.token)
+        client._http._transport = httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"results": [], "next": None})
+        )
+        return client
+
+    with TestClient(app_module.app) as client:
+        cfg = client.app.state.config
+        cfg.update({**settings, "poll_minutes": 0})
+        if has_instance:
+            cfg.save_instance(None, "Paperless", "http://paperless", "", "test-token", True)
+        monkeypatch.setattr(client.app.state.processor, "client", paperless_client)
+        response = client.get("/", headers={"Accept-Language": "en"})
+    assert response.status_code == 200
+    assert ('class="flash bad"' in response.text) == (warning is not None)
+    if warning:
+        assert warning in response.text

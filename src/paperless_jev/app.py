@@ -292,6 +292,7 @@ async def dashboard(request: Request):
         request,
         "dashboard.html",
         cfg=cfg,
+        classifier_error=classifier_missing(cfg),
         instances=_cfg(request).instances(),
         counts=counts,
         tokens=tokens,
