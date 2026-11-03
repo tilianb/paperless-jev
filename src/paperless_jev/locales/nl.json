@@ -462,5 +462,12 @@
  "Warteschlangen-Tag": "Wachtrij-tag",
  "Leer: Jev fragt den Posteingang ab. Sonst nur Dokumente mit diesem Tag, z. B. von einem vorgelagerten Werkzeug gesetzt; Jev entfernt ihn nach der Bearbeitung.": "Leeg: Jev controleert de inbox. Anders alleen documenten met deze tag, bijv. gezet door een tool ervoor; Jev verwijdert hem na verwerking.",
  "System-Tags": "Systeemtags",
- "Kommagetrennt. Jev schlägt diese Tags nie vor und prüft sie nicht, z. B. Status-Tags anderer Werkzeuge.": "Kommagescheiden. Jev stelt deze tags nooit voor en controleert ze niet, bijv. statustags van andere tools."
+ "Kommagetrennt. Jev schlägt diese Tags nie vor und prüft sie nicht, z. B. Status-Tags anderer Werkzeuge.": "Kommagescheiden. Jev stelt deze tags nooit voor en controleert ze niet, bijv. statustags van andere tools.",
+ "Anmelden": "Aanmelden",
+ "Abmelden": "Afmelden",
+ "Abgemeldet": "Afgemeld",
+ "Benutzer": "Gebruikersnaam",
+ "Passwort": "Wachtwoord",
+ "Benutzer oder Passwort falsch": "Onjuiste gebruikersnaam of wachtwoord",
+ "Zu viele Fehlversuche – bitte eine Minute warten": "Te veel mislukte pogingen – wacht een minuut"
 }
