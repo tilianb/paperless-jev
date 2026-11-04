@@ -27,10 +27,14 @@ FIELD_LABELS = {
 DEFAULTS: dict[str, Any] = {
     "typesafe_api_key": "",
     "model": "jev-latest",
-    # Klassifizierer: "typesafe" (Jev in der Cloud) oder "ollama" (lokales Modell, z. B. clef)
+    # Klassifizierer: "typesafe" (Jev in der Cloud), "cloudflare" (Jev über Workers AI)
+    # oder "ollama" (lokales Modell, z. B. clef)
     "classifier": "typesafe",
     "classifier_url": "",
     "classifier_model": "clef",
+    "classifier_api_key": "",  # optional, für einen System-One-Server hinter Anmeldung
+    "cloudflare_account_id": "",
+    "cloudflare_api_token": "",
     # Eigene Schwellen für lokale Modelle: clef meldet tiefere Confidence als Jev.
     # Vorgaben gemessen an 43 geprüften Dokumenten (ab diesen Werten lag clef nie falsch);
     # neue Tags waren mit clef unzuverlässig -> praktisch nur noch Vorschläge.
@@ -66,6 +70,10 @@ DEFAULTS: dict[str, Any] = {
     "tag_done": "ai-klassifiziert",
     "tag_review": "ai-review",
     "tag_ignore": "ai-ignorieren",
+    # leer: Posteingang abfragen; sonst nur Dokumente mit diesem Tag (Übergabe von einem anderen Werkzeug)
+    "poll_tag": "",
+    # Tags anderer Werkzeuge, die Jev weder vorschlägt noch prüft
+    "system_tags": [],
     # off: Titel bleibt | template: aus Vorlage | llm: vom Sprachmodell formuliert
     "title_mode": "off",
     "title_template": "{document_type} {correspondent} {created:%Y-%m}",
@@ -84,7 +92,7 @@ DEFAULTS: dict[str, Any] = {
     "webhook_secret": "",
 }
 
-SECRET_KEYS = ("typesafe_api_key", "llm_api_key")
+SECRET_KEYS = ("typesafe_api_key", "llm_api_key", "classifier_api_key", "cloudflare_api_token")
 
 
 @dataclass

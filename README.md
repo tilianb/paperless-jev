@@ -6,10 +6,6 @@ Classifies new documents in the [Paperless-ngx](https://docs.paperless-ngx.com/)
 [TypeSafe Jev](https://docs.typesafe.ai/introduction): document type, correspondent, storage path,
 issue date and tags – or locally with [clef](https://ollama.com/library/clef) via Ollama. Runs as a Docker container and is configured entirely through a web UI.
 
-This fork adds [native Cloudflare Jev inference and a scoped tagging handoff](docs/cloudflare.md)
-for use alongside Paperless-GPT. It keeps the upstream TypeSafe and Ollama backends.
-The fork runs tests on main pushes; image publishing remains restricted to upstream.
-
 ![Overview](docs/screenshots/uebersicht-en.png)
 
 | Review (desktop) | Dark mode |
@@ -129,10 +125,11 @@ Everything else is configured in the web UI. The environment only covers:
 | Variable | Default | Purpose |
 |---|---|---|
 | `PJ_SECRET_KEY` | – | Key for encrypting stored tokens. If unset, `/data/secret.key` is created. |
-| `PJ_ADMIN_USER` / `PJ_ADMIN_PASSWORD` | `admin` / – | Optional basic auth for the web UI (`/hook/*` and `/health` stay open). |
+| `PJ_ADMIN_USER` / `PJ_ADMIN_PASSWORD` | `admin` / – | Optional login for the web UI: sign-in page that works with password managers, stays signed in for 30 days of use, sign-out button. `/hook/*` and `/health` stay open; a basic-auth header is still accepted for scripts. |
 | `PJ_LOG_LEVEL` | `INFO` | Log level |
 | `PJ_DATA_DIR` | `/data` | Data directory (SQLite, key) |
 | `TZ` | `Europe/Zurich` | Time zone for display |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN_FILE` | – | Optional for Cloudflare Workers AI when the Setup fields are empty; the token is read from a file, e.g. a Docker secret |
 
 **Back up `/data`** – `paperless-jev.db` and `secret.key` belong together, otherwise the stored tokens can no longer be read.
 
@@ -154,11 +151,28 @@ Paperless (≥ 2.14) → *Workflows* → new workflow:
 Polling (every 5 minutes by default) stays active as a fallback and only processes inbox documents that
 have never been evaluated.
 
+### Handing off from another tool
+
+To let another tool (e.g. paperless-gpt for OCR and titles) finish first, have it add a tag such as
+`jev-pending` and enter that as the *queue tag* under *Rules → Status tags*. Jev then only takes documents
+with that tag – by polling and by webhook – and removes it afterwards. List the other tool's own tags under
+*system tags* so Jev never suggests or checks them.
+
+## Jev via Cloudflare Workers AI
+
+Cloudflare serves the same Jev model as `typesafe/jev`, at the same price, billed to your Cloudflare account.
+Choose *Setup → Classification → Cloudflare Workers AI* and enter the account ID and an API token with Workers AI
+permission. Jev is a partner model: it needs prepaid credits in Cloudflare's **AI Gateway** (the free Workers AI
+allowance does not cover it). Cloudflare picks the Jev version; unlike TypeSafe it cannot be pinned, so a new
+version can shift the confidence values. In a blind test on 30 filed documents both routes gave identical answers
+(confidence on average 0.01 apart).
+
 ## Local classification with Ollama (clef)
 
 Instead of TypeSafe Jev, a local decision model that supports Ollama's `/v1/systemone` endpoint (capability
 "decision") can classify, e.g. [clef](https://ollama.com/library/clef) by Cloudflare (27B, Apache 2.0, ~18 GB).
 Set it up under *Setup → Classification → Local via Ollama* with URL and model. Documents then never leave your network.
+If the server requires authentication, enter an API key; it is sent as a bearer token.
 
 paperless-jev handles clef's limits automatically: at most 64 questions per request (split up) and 26 candidates per
 choice question (with more correspondents or types, a tournament: rate groups, final round with the best) – only if
@@ -180,6 +194,7 @@ Run your own: `python -m bench.run --jev --ollama http://<host>:11434` (see [`be
 
 - The shortened OCR text and the names of your metadata are sent to `api.typesafe.ai`. According to its
   documentation, TypeSafe does not train on customer data. Documents tagged `ai-ignorieren` are never sent.
+- With Cloudflare Workers AI the same data goes to Cloudflare instead (zero data retention according to Cloudflare).
 - With a local model via Ollama (e.g. clef) everything stays in your own network.
 - The optional language model runs on your own hardware (Ollama, SGLang, vLLM, LM Studio …).
 - jev-1.13 costs USD 0.042 per million input tokens. A document takes roughly 5–15k tokens, depending on
@@ -194,6 +209,8 @@ docker run --rm -it --network <paperless network> \
   -e PAPERLESS_URL=http://paperless:8000 -e PAPERLESS_TOKEN=... -e TYPESAFE_API_KEY=... \
   paperless-jev:latest paperless-jev-spike --sample 50 --blind
 ```
+
+With `--cloudflare` (and `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN_FILE`) Jev runs via Cloudflare Workers AI.
 
 `--blind` hides the current filing and compares the suggestions with it. Descriptions can be tested
 beforehand with `--descriptions`, template: [`beschreibungen.beispiel.json`](beschreibungen.beispiel.json).
