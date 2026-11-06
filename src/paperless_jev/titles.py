@@ -173,7 +173,7 @@ async def describe_category(
     prompt = DESCRIBE_PROMPTS[lang].format(
         kind=KIND_NAMES[lang].get(kind, kind), name=name, notes=notes.strip(), examples=example_lines
     )
-    raw = await complete(llm, prompt, max_tokens=200)
+    raw = await complete(llm, prompt, max_tokens=2000, reasoning_effort="none")
     raw = re.sub(r"^(beschreibung|description|english|deutsch)\s*:\s*", "", raw, flags=re.IGNORECASE).strip().strip('"').strip()
     raw = strip_invented_exclusions(raw, notes)
     if not raw:

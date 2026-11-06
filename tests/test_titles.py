@@ -99,3 +99,59 @@ async def test_generate_title_asks_for_shorter_and_accepts_long_title(monkeypatc
     # bleibt es zu lang, wird der kürzere von beiden genommen statt gar keiner
     await fake([long_title, long_title + " Einkauf"])
     assert await titles.generate_title(llm, "Text", {}, []) == long_title
+
+
+async def test_describe_category_leaves_room_for_reasoning(monkeypatch):
+    import json
+
+    import httpx
+
+    from paperless_jev.llm import LLM
+    from paperless_jev.titles import describe_category
+
+    from .test_llm import _patch
+
+    description = "Certificates of completion and qualification."
+
+    def handler(request):
+        budget = json.loads(request.content)["max_tokens"]
+        # The actual Certificate request used 1555 reasoning tokens before its answer.
+        content = description if budget >= 1589 else ""
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop" if content else "length",
+            "message": {"content": content, "reasoning_content": "Internal reasoning"},
+        }]})
+
+    _patch(monkeypatch, handler)
+    llm = LLM("openai", "https://provider.example/v1", "reasoning-model")
+    assert await describe_category(
+        llm, "document_type", "Certificate", "completion, qualification", [], lang="en"
+    ) == description
+
+
+async def test_descriptions_disable_reasoning_without_changing_titles(monkeypatch):
+    import json
+
+    import httpx
+
+    from paperless_jev.llm import LLM
+    from paperless_jev.titles import describe_category, generate_title
+
+    from .test_llm import _patch
+
+    def handler(request):
+        payload = json.loads(request.content)
+        if payload["max_tokens"] == 60:
+            if "reasoning_effort" in payload:
+                return httpx.Response(400, text="Title requests must remain unchanged")
+            content = "Certificate of completion"
+        else:
+            content = "Certificates of completion." if payload.get("reasoning_effort") == "none" else ""
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    _patch(monkeypatch, handler)
+    llm = LLM("openai", "https://provider.example/v1", "reasoning-model")
+    assert await describe_category(
+        llm, "document_type", "Certificate", "completion", [], lang="en"
+    ) == "Certificates of completion."
+    assert await generate_title(llm, "Course completed successfully.", {}, []) == "Certificate of completion"

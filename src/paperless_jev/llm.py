@@ -54,7 +54,8 @@ def strip_thinking(text: str) -> str:
 
 
 async def complete(
-    llm: LLM, prompt: str, max_tokens: int, temperature: float = 0.2, timeout: float = 180.0
+    llm: LLM, prompt: str, max_tokens: int, temperature: float = 0.2, timeout: float = 180.0,
+    *, reasoning_effort: str | None = None,
 ) -> str:
     """Ein Prompt, eine Antwort - ohne Denkmodus, wo das Modell ihn kennt."""
     async with httpx.AsyncClient(timeout=timeout, headers=llm._headers()) as http:
@@ -68,6 +69,8 @@ async def complete(
                     # Qwen3 & Co.: Denkmodus aus (SGLang/vLLM); andere Server lehnen das evtl. ab
                     "chat_template_kwargs": {"enable_thinking": False},
                 }
+                if reasoning_effort is not None:
+                    payload["reasoning_effort"] = reasoning_effort
                 url = f"{llm._openai_base()}/chat/completions"
                 resp = await http.post(url, json=payload)
                 if resp.status_code == 400 and "chat_template_kwargs" in resp.text:
