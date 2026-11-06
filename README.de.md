@@ -43,7 +43,7 @@ Ausstellungsdatum und Tags – oder lokal mit [clef](https://ollama.com/library/
   z. B. Qwen) formuliert deine Stichworte in der Sprache der Oberfläche aus (Deutsch oder Englisch, bei allen anderen Sprachen Englisch).
 - **Belege scannen** mit dem Handy: Rand wird automatisch erkannt und entzerrt, mehrere Seiten zu einem PDF,
   direkt nach Paperless (siehe unten).
-- **Titel** optional per Sprachmodell (Stil nach bereits abgelegten Dokumenten, geprüft und bei Bedarf gekürzt)
+- **Titel** optional per Sprachmodell (Stil nach bereits abgelegten Dokumenten, eigene Anweisungen und Sprache wählbar, geprüft und bei Bedarf gekürzt)
   oder per Vorlage – entsteht schon bei der Analyse und ist im Review vorausgefüllt.
 - **Stammdaten pflegen** ohne Paperless zu öffnen: Dokumenttypen, Korrespondenten und Tags anlegen (auch direkt im
   Review), Tag-Farben, Löschen mit Assistent – Dokumente auf einen anderen Eintrag übertragen oder nur entfernen.
@@ -98,6 +98,7 @@ Fertiges Image (amd64 und arm64):
 
 ```bash
 docker run -d --name paperless-jev -p 8090:8000 -v paperless-jev-data:/data \
+  -e PJ_ADMIN_PASSWORD='passwort-waehlen' \
   ghcr.io/pendraga/paperless-jev:latest
 # → http://localhost:8090
 ```
@@ -107,13 +108,13 @@ Oder selbst bauen:
 ```bash
 git clone https://github.com/PenDraga/paperless-jev.git
 cd paperless-jev
-cp .env.example .env
+cp .env.example .env   # PJ_ADMIN_PASSWORD setzen
 docker compose up -d --build
 ```
 
-1. **Setup** – TypeSafe-API-Key eintragen, Paperless-Instanz mit URL und API-Token anlegen, „Verbindung testen“.
-2. **Regeln** – im Modus *Probelauf* starten, Felder und Schwellwerte wählen, optional ein Sprachmodell einrichten.
-3. **Beschreibungen** – für Dokumenttypen und Tags ein paar Stichworte hinterlegen, vor allem zur Abgrenzung
+1. **Einstellungen → Verbindungen** – TypeSafe-API-Key eintragen, Paperless-Instanz mit URL und API-Token anlegen, „Verbindung testen“.
+2. **Einstellungen → Regeln** – im Modus *Probelauf* starten, Felder und Schwellwerte wählen, optional ein Sprachmodell einrichten.
+3. **Einstellungen → Beschreibungen** – für Dokumenttypen und Tags ein paar Stichworte hinterlegen, vor allem zur Abgrenzung
    ähnlicher Kategorien („… – nicht: …“).
 4. **Übersicht → Posteingang jetzt verarbeiten** und im Protokoll prüfen, wie gut die Vorschläge sind.
 5. Danach Modus *Automatisch* aktivieren und in Paperless den Webhook anlegen (siehe unten).
@@ -125,10 +126,12 @@ Alles Fachliche wird in der Web-UI eingestellt. Per Umgebung gibt es nur:
 | Variable | Standard | Zweck |
 |---|---|---|
 | `PJ_SECRET_KEY` | – | Schlüssel für die Verschlüsselung der gespeicherten Tokens. Ohne Angabe wird `/data/secret.key` erzeugt. |
-| `PJ_ADMIN_USER` / `PJ_ADMIN_PASSWORD` | `admin` / – | Optionale Anmeldung für die Web-UI: Anmeldeseite, die mit Passwort-Managern funktioniert, bleibt bei Nutzung 30 Tage angemeldet, Abmelde-Knopf. `/hook/*` und `/health` bleiben offen; ein Basic-Auth-Header wird für Skripte weiter akzeptiert. |
+| `PJ_ADMIN_USER` / `PJ_ADMIN_PASSWORD` | `admin` / – | Anmeldung für die Web-UI: Anmeldeseite, die mit Passwort-Managern funktioniert, bleibt bei Nutzung 30 Tage angemeldet (höchstens 90 Tage ab Anmeldung), Abmelde-Knopf, der auch Kopien der Sitzung beendet. `/hook/*` und `/health` bleiben offen; ein Basic-Auth-Header wird für Skripte weiter akzeptiert. **Ohne Passwort ist die Web-UI gesperrt** (HTTP 503), ausser `PJ_ALLOW_NO_LOGIN` ist gesetzt. |
+| `PJ_ALLOW_NO_LOGIN` | `false` | `true` öffnet die Web-UI ohne Passwort. Nur, wenn ein vorgeschalteter Login (z. B. Authentik) jede Anfrage schützt und der Container anders nicht erreichbar ist. |
+| `PJ_TRUSTED_PROXIES` | `127.0.0.1` | Adressen oder Netze (kommagetrennt, z. B. `172.19.0.0/16`), die `X-Forwarded-For`/`-Proto` setzen dürfen. Hinter einem Reverse Proxy dessen Netz eintragen, sonst gilt die Sperre nach Fehlversuchen für den Proxy statt für den Client, und das Sitzungs-Cookie bekommt kein `Secure`. |
 | `PJ_LOG_LEVEL` | `INFO` | Log-Level |
 | `PJ_DATA_DIR` | `/data` | Datenverzeichnis (SQLite, Schlüssel) |
-| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN_FILE` | – | Optional für Cloudflare Workers AI, wenn die Felder im Setup leer sind; das Token wird aus einer Datei gelesen, z. B. einem Docker-Secret |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN_FILE` | – | Optional für Cloudflare Workers AI, wenn die Felder unter Verbindungen leer sind; das Token wird aus einer Datei gelesen, z. B. einem Docker-Secret |
 | `TZ` | `Europe/Zurich` | Zeitzone für die Anzeige |
 
 **`/data` sichern** – `paperless-jev.db` und `secret.key` gehören zusammen, sonst sind die gespeicherten Tokens nicht mehr lesbar.
@@ -138,14 +141,14 @@ Alles Fachliche wird in der Web-UI eingestellt. Per Umgebung gibt es nur:
 Beispiel: [`deploy/compose.yaml`](deploy/compose.yaml) – im selben Netz wie Paperless, Web-UI nur aus dem
 internen Netz (IP-Allowlist). Wichtig: Eine Header-Middleware mit `frameDeny: true`
 (`X-Frame-Options: DENY`) blockiert den Dokument-Viewer. paperless-jev setzt selbst
-`X-Frame-Options: SAMEORIGIN`, eine Middleware ohne `frameDeny` genügt also. Fürs Scannen darf ein `Permissions-Policy`-Header die Kamera nicht sperren (`camera=(self)` statt `camera=()`), und die Seite muss über HTTPS laufen.
+`X-Frame-Options: SAMEORIGIN`, eine Middleware ohne `frameDeny` genügt also. `PJ_TRUSTED_PROXIES` auf das Traefik-Netz setzen. Fürs Scannen darf ein `Permissions-Policy`-Header die Kamera nicht sperren (`camera=(self)` statt `camera=()`), und die Seite muss über HTTPS laufen.
 
 ### Webhook in Paperless
 
 Paperless (≥ 2.14) → *Workflows* → neuer Workflow:
 
 - Auslöser *Dokument hinzugefügt*
-- Aktion *Webhook*: `http://paperless-jev:8000/hook/<instanzname>?token=<secret>` (Secret auf der Setup-Seite),
+- Aktion *Webhook*: `http://paperless-jev:8000/hook/<instanzname>?token=<secret>` (Secret unter Einstellungen → Verbindungen),
   *Webhook-Parameter verwenden* aktiv, Parameter `doc_id` = `{{ doc_id }}`
 
 Polling (Standard alle 5 Minuten) bleibt als Fallback aktiv und verarbeitet nur Dokumente im Posteingang,
@@ -154,14 +157,14 @@ die noch nie bewertet wurden.
 ### Übergabe von einem anderen Werkzeug
 
 Soll ein anderes Werkzeug zuerst fertig werden (z. B. paperless-gpt für OCR und Titel), lässt man es einen Tag
-wie `jev-pending` setzen und trägt diesen unter *Regeln → Tags für den Status* als *Warteschlangen-Tag* ein. Jev nimmt
+wie `jev-pending` setzen und trägt diesen unter *Einstellungen → Regeln → Tags für den Status* als *Warteschlangen-Tag* ein. Jev nimmt
 dann nur Dokumente mit diesem Tag – per Polling und per Webhook – und entfernt ihn danach. Die eigenen Tags des
 anderen Werkzeugs gehören unter *System-Tags*, damit Jev sie nie vorschlägt oder prüft.
 
 ## Jev über Cloudflare Workers AI
 
 Cloudflare bietet dasselbe Jev-Modell als `typesafe/jev` an, zum gleichen Preis, abgerechnet über das eigene
-Cloudflare-Konto. Unter *Setup → Klassifizierung → Cloudflare Workers AI* Konto-ID und ein API-Token mit
+Cloudflare-Konto. Unter *Einstellungen → Verbindungen → Klassifizierung → Cloudflare Workers AI* Konto-ID und ein API-Token mit
 Workers-AI-Berechtigung eintragen. Jev ist ein Partnermodell: Es braucht vorausbezahltes Guthaben im **AI Gateway**
 von Cloudflare (das Gratis-Kontingent von Workers AI gilt dafür nicht). Cloudflare wählt die Jev-Version; anders als
 bei TypeSafe lässt sie sich nicht pinnen, eine neue Version kann die Confidence-Werte verschieben. Im Blindtest mit
@@ -171,7 +174,7 @@ bei TypeSafe lässt sie sich nicht pinnen, eine neue Version kann die Confidence
 
 Statt TypeSafe Jev kann ein lokales Entscheidungsmodell klassifizieren, das den Endpunkt `/v1/systemone` von
 Ollama unterstützt (Fähigkeit «decision»), z. B. [clef](https://ollama.com/library/clef) von Cloudflare (27B,
-Apache 2.0, ~18 GB). Einrichten unter *Setup → Klassifizierung → Lokal über Ollama* mit URL und Modell.
+Apache 2.0, ~18 GB). Einrichten unter *Einstellungen → Verbindungen → Klassifizierung → Lokal über Ollama* mit URL und Modell.
 Dokumente verlassen dann das eigene Netz nicht.
 Verlangt der Server eine Anmeldung, einen API-Key eintragen; er wird als Bearer-Token gesendet.
 

@@ -54,6 +54,8 @@ EN: dict[str, str] = {
     "Regeln": "Rules",
     "Beschreibungen": "Descriptions",
     "Setup": "Setup",
+    "Einstellungen": "Settings",
+    "Verbindungen": "Connections",
     "Klassifizierung mit TypeSafe Jev": "Classification with TypeSafe Jev",
     "Sprache": "Language",
     "Navigation": "Navigation",
@@ -96,8 +98,8 @@ EN: dict[str, str] = {
     "Keine Fragen - alle Felder deaktiviert?": "No questions - are all fields disabled?",
     "Instanz existiert nicht mehr": "Instance no longer exists",
     # --- Übersicht ------------------------------------------------------------
-    "Noch keine Paperless-Instanz – bitte unter <a href=\"/setup\">Setup</a> eine hinterlegen.":
-        "No Paperless instance yet – please add one under <a href=\"/setup\">Setup</a>.",
+    "Noch keine Paperless-Instanz – bitte unter <a href=\"/setup\">Einstellungen</a> eine hinterlegen.":
+        "No Paperless instance yet – please add one under <a href=\"/setup\">Settings</a>.",
     "Modus": "Mode",
     "Probelauf – schreibt nichts": "Dry run – writes nothing",
     "Nur Vorschläge (Review)": "Suggestions only (review)",
@@ -400,6 +402,16 @@ EN: dict[str, str] = {
         "Jev returns a calibrated <em>confidence</em> per answer (for tags the probability of “yes”). From <em>Auto</em> the value is set, from <em>Review</em> it is suggested, below that it is ignored.",
     "Auto ≥": "Auto ≥",
     "Review ≥": "Review ≥",
+    "Automatisch setzen ≥": "Apply automatically ≥",
+    "Zur Prüfung vorschlagen ≥": "Suggest for review ≥",
+    "Nur Vorschläge: alle Dokumente zur Freigabe, auch sichere Werte. Automatisch: sichere Werte sofort setzen; fehlt etwas oder gibt es Konflikte, folgt Review. Sichere Werte können dann bereits gesetzt sein. Probelauf: keine Änderungen in Paperless.":
+        "Suggestions only: all documents need approval, including confident values. Automatic: apply confident values immediately; missing values or conflicts can still require review. Confident values may already have been applied. Dry run: no changes in Paperless.",
+    "Titelanweisungen": "Title instructions",
+    "Sprache der Titel": "Title language",
+    "Schreibe einen kurzen, aussagekräftigen deutschen Titel (höchstens 60 Zeichen). Orientiere dich am Archivstil und benenne den konkreten Inhalt, nicht nur die Dokumentart. Kein Datum, keine Jahreszahl und keine Personennamen, ausser Monat oder Jahr kommen in den Beispieltiteln vor. Antworte nur mit dem Titel, ohne Anführungszeichen oder Erklärung.":
+        "Write a short, meaningful English title (at most 60 characters). Follow the archive style and describe the specific subject, not just the document type. No dates, years or personal names, unless the example titles include a month or year. Return only the title, without quotation marks or explanation.",
+    "Nur für Sprachmodell-Titel: Sprache, Stil oder Inhalt vorgeben. Diese Vorgaben haben Vorrang vor dem Archivstil. Leer lassen für das bisherige Verhalten. Es bleibt bei einem kurzen Titel ohne Erklärung.":
+        "For language-model titles only: specify language, style or content. These instructions take priority over the archive style. Leave blank to keep the existing behavior. Output remains a short title without explanation.",
     "bereits gesetzte Werte überschreiben (z. B. aus dem Paperless-eigenen Matching)":
         "overwrite values that are already set (e.g. from Paperless' own matching)",
     "Sammel-Korrespondent, wenn keiner passt": "Catch-all correspondent if none fits",
@@ -430,8 +442,7 @@ EN: dict[str, str] = {
     "(nur OpenAI-kompatibel und nur falls nötig)": "(OpenAI-compatible only, and only if required)",
     "(nur OpenAI-kompatibel und nur falls nötig – gespeichert, leer lassen zum Behalten)":
         "(OpenAI-compatible only, and only if required – saved, leave empty to keep)",
-    "Erst speichern, dann testen. Paperless-Workflows, die bei „Dokument aktualisiert“ einen Titel setzen, haben danach das letzte Wort.":
-        "Save first, then test. Paperless workflows that set a title on “Document Updated” have the last word afterwards.",
+    "Paperless-Workflows, die bei „Dokument aktualisiert“ einen Titel setzen, haben danach das letzte Wort.": "Paperless workflows that set a title on “Document Updated” have the last word afterwards.",
     "Verarbeitung": "Processing",
     "Polling-Intervall (Minuten, 0 = aus)": "Polling interval (minutes, 0 = off)",
     "Max. Zeichen Dokumenttext": "Max. characters of document text",
@@ -449,7 +460,7 @@ EN: dict[str, str] = {
     "Schreib in der Sprache der Oberfläche. Mit einem Sprachmodell unter <a href=\"/rules\">Regeln</a> reichen auch Stichworte – es formuliert sie aus.":
         "Write in the interface language. With a language model under <a href=\"/rules\">Rules</a>, keywords are enough – it writes them out.",
     "Deaktivierte Einträge schlägt Jev nie vor.": "Jev never suggests disabled entries.",
-    "Zuerst unter <a href=\"/setup\">Setup</a> eine Instanz anlegen.": "First create an instance under <a href=\"/setup\">Setup</a>.",
+    "Zuerst unter <a href=\"/setup\">Einstellungen</a> eine Instanz anlegen.": "First create an instance under <a href=\"/setup\">Settings</a>.",
     "Beschreibung für Jev": "Description for Jev",
     "Stichworte, optional": "keywords, optional",
     "optional": "optional",
@@ -472,7 +483,8 @@ EN: dict[str, str] = {
     "OK - {inbox} im Posteingang, {types} Typen, {correspondents} Korrespondenten, {tags} Tags":
         "OK - {inbox} in inbox, {types} types, {correspondents} correspondents, {tags} tags",
     "Regeln gespeichert": "Rules saved",
-    "URL und Modell speichern, dann testen": "Save URL and model, then test",
+    "URL und Modell eintragen, dann testen": "Enter URL and model, then test",
+    "API-URL und API-Token eintragen": "Enter API URL and API token",
     "Modell {model} fehlt. Vorhanden: {available}": "Model {model} is missing. Available: {available}",
     "OK - {model} verfügbar": "OK - {model} available",
     "Beschreibungen gespeichert": "Descriptions saved",

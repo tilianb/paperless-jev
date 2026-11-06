@@ -14,18 +14,19 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import uvicorn
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from . import __version__
 from .auth import COOKIE as SESSION_COOKIE, MAX_AGE as SESSION_MAX_AGE, Auth
 from .classifier import excluded_tags
-from .config import FIELD_LABELS, SINGLE_FIELDS, Config
+from .config import FIELD_LABELS, SINGLE_FIELDS, Config, Instance
 from .db import Database
 from . import i18n
 from .i18n import gettext as _
@@ -33,7 +34,7 @@ from .jev import CLASSIFIERS, USD_PER_MTOK, JevError, classifier, classifier_mis
 from .paperless import TAG_SEP, DocumentMissing, Metadata, PaperlessClient, PaperlessError
 from .processor import DOC_MISSING, TAG_TEST, TEST, Processor
 from .llm import LLM, PROVIDERS, LLMError, list_models
-from .titles import describe_category
+from .titles import TITLE_LANGUAGES, describe_category
 from .vault import Vault
 
 log = logging.getLogger("paperless_jev")
@@ -44,6 +45,10 @@ mimetypes.add_type("text/javascript", ".mjs")
 DATA_DIR = Path(os.environ.get("PJ_DATA_DIR", "/data"))
 ADMIN_USER = os.environ.get("PJ_ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.environ.get("PJ_ADMIN_PASSWORD", "")
+# Ohne Passwort bleibt die Oberfläche gesperrt, ausser ein vorgeschalteter Login (z. B. Authentik) schützt sie
+ALLOW_NO_LOGIN = os.environ.get("PJ_ALLOW_NO_LOGIN", "").strip().lower() in ("1", "true", "yes")
+# Nur diese Absender dürfen X-Forwarded-For/-Proto setzen (IPs oder Netze, kommagetrennt)
+TRUSTED_PROXIES = os.environ.get("PJ_TRUSTED_PROXIES", "127.0.0.1")
 # OpenCV.js (10 MB, nur für den Scanner) liefert das Docker-Image mit; sonst vom CDN
 CV_URL = (
     "/static/vendor/opencv.js" if (HERE / "static" / "vendor" / "opencv.js").exists()
@@ -83,7 +88,9 @@ async def lifespan(app: FastAPI):
     vault = Vault(DATA_DIR)
     config = Config(db, vault)
     processor = Processor(db, config)
-    app.state.auth = Auth(ADMIN_USER, ADMIN_PASSWORD, vault.derive("session"))
+    app.state.auth = Auth(ADMIN_USER, ADMIN_PASSWORD, vault.derive("session"), db)
+    if not ADMIN_PASSWORD and not ALLOW_NO_LOGIN:
+        log.warning("Kein PJ_ADMIN_PASSWORD gesetzt: Oberfläche gesperrt (PJ_ALLOW_NO_LOGIN=true, falls ein vorgeschalteter Login schützt)")
     app.state.db, app.state.config, app.state.processor = db, config, processor
     await processor.start()
     yield
@@ -154,10 +161,17 @@ async def set_language(code: str, next: str = "/"):
 
 @app.middleware("http")
 async def require_login(request: Request, call_next):
-    """Optionaler Passwortschutz (PJ_ADMIN_PASSWORD); hinter Traefik + Authentik meist nicht nötig."""
+    """Passwortschutz (PJ_ADMIN_PASSWORD); ohne Passwort nur mit ausdrücklichem PJ_ALLOW_NO_LOGIN."""
     auth: Auth = request.app.state.auth
     token = request.cookies.get(SESSION_COOKIE)
-    if auth.enabled and not request.url.path.startswith(PUBLIC_PATHS):
+    public = request.url.path.startswith(PUBLIC_PATHS)
+    if not auth.enabled and not ALLOW_NO_LOGIN and not public:
+        return Response(
+            "paperless-jev: no admin password is configured. Set PJ_ADMIN_PASSWORD, or set "
+            "PJ_ALLOW_NO_LOGIN=true if a login in front of it (e.g. Authentik) protects every request.\n",
+            status_code=503, media_type="text/plain",
+        )
+    if auth.enabled and not public:
         if not (auth.valid(token) or auth.basic_ok(request.headers.get("authorization", ""))):
             target = _local_path(request.url.path + (f"?{request.url.query}" if request.url.query else ""), "/")
             login = "/login" + (f"?{urlencode({'next': target})}" if target != "/" else "")
@@ -168,13 +182,40 @@ async def require_login(request: Request, call_next):
             return Response(status_code=401)
     response = await call_next(request)
     if auth.enabled and auth.needs_renewal(token):
-        _set_session(request, response, auth)
+        _set_session(request, response, auth, token)
     return response
 
 
-def _set_session(request: Request, response: Response, auth: Auth) -> None:
-    secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
-    response.set_cookie(SESSION_COOKIE, auth.issue(), max_age=SESSION_MAX_AGE, httponly=True, samesite="lax", secure=secure)
+@app.middleware("http")
+async def same_origin_only(request: Request, call_next):
+    """Schutz vor fremden Seiten (CSRF): ändernde Browser-Anfragen nur von hier.
+
+    Browser senden Sec-Fetch-Site oder wenigstens Origin. Skripte mit Basic-Auth
+    senden keines von beiden und bleiben erlaubt; Webhooks prüfen ihr eigenes Token.
+    """
+    if request.method not in ("GET", "HEAD", "OPTIONS") and not request.url.path.startswith("/hook/"):
+        site = request.headers.get("sec-fetch-site")
+        origin = request.headers.get("origin")
+        if site is not None:
+            allowed = site in ("same-origin", "none")
+        elif origin is not None:
+            allowed = urlsplit(origin).netloc.lower() == request.headers.get("host", "").lower()
+        else:
+            allowed = True
+        if not allowed:
+            log.warning("Anfrage einer fremden Seite abgewiesen: %s %s (Origin %s)", request.method, request.url.path, origin)
+            return Response("Cross-origin request rejected\n", status_code=403, media_type="text/plain")
+    return await call_next(request)
+
+
+# Äusserste Schicht: Client-Adresse und Schema nur von vertrauenswürdigen Proxys
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=TRUSTED_PROXIES)
+
+
+def _set_session(request: Request, response: Response, auth: Auth, token: str | None = None) -> None:
+    # Schema nur aus der Verbindung selbst oder von einem vertrauenswürdigen Proxy
+    secure = request.url.scheme == "https"
+    response.set_cookie(SESSION_COOKIE, auth.issue(token), max_age=SESSION_MAX_AGE, httponly=True, samesite="lax", secure=secure)
 
 
 def _client_ip(request: Request) -> str:
@@ -210,7 +251,8 @@ async def login(request: Request, username: str = Form(""), password: str = Form
 
 
 @app.post("/logout")
-async def logout():
+async def logout(request: Request):
+    request.app.state.auth.revoke(request.cookies.get(SESSION_COOKIE))
     resp = _redirect("/login", msg=_("Abgemeldet"))
     resp.delete_cookie(SESSION_COOKIE)
     return resp
@@ -881,31 +923,45 @@ async def setup_page(request: Request):
     )
 
 
-@app.post("/setup/typesafe")
-async def save_typesafe(
-    request: Request, api_key: str = Form(""), model: str = Form("jev-latest"), classifier_kind: str = Form("typesafe"),
-    classifier_url: str = Form(""), classifier_model: str = Form(""), classifier_api_key: str = Form(""),
-    cloudflare_account_id: str = Form(""), cloudflare_api_token: str = Form(""),
-):
+def _classifier_form(form: Any) -> dict[str, Any]:
+    """Klassifizierer-Felder aus dem Setup-Formular; leere Passwortfelder behalten den gespeicherten Wert."""
+    get = lambda key, default="": str(form.get(key) or default).strip()  # noqa: E731
     values: dict[str, Any] = {
-        "model": model.strip() or "jev-latest",
-        "classifier": classifier_kind if classifier_kind in CLASSIFIERS else "typesafe",
-        "classifier_url": classifier_url.strip().rstrip("/"),
-        "classifier_model": classifier_model.strip() or "clef",
+        "model": get("model") or "jev-latest",
+        "classifier": kind if (kind := get("classifier_kind", "typesafe")) in CLASSIFIERS else "typesafe",
+        "classifier_url": get("classifier_url").rstrip("/"),
+        "classifier_model": get("classifier_model") or "clef",
+        "cloudflare_account_id": get("cloudflare_account_id"),
     }
-    # leere Passwortfelder behalten den gespeicherten Wert
-    values["cloudflare_account_id"] = cloudflare_account_id.strip()
-    for key, value in (("typesafe_api_key", api_key), ("classifier_api_key", classifier_api_key),
-                       ("cloudflare_api_token", cloudflare_api_token)):
-        if value.strip():
-            values[key] = value.strip()
-    _cfg(request).update(values)
+    for key, field in (("typesafe_api_key", "api_key"), ("classifier_api_key", "classifier_api_key"),
+                       ("cloudflare_api_token", "cloudflare_api_token")):
+        if get(field):
+            values[key] = get(field)
+    return values
+
+
+def _llm_form(form: Any) -> dict[str, Any]:
+    """Sprachmodell-Felder aus dem Regeln-Formular; ein leerer API-Key behält den gespeicherten."""
+    values = {
+        "llm_provider": provider if (provider := str(form.get("llm_provider", "ollama"))) in PROVIDERS else "ollama",
+        "llm_url": str(form.get("llm_url") or "").strip().rstrip("/"),
+        "llm_model": str(form.get("llm_model") or "").strip(),
+    }
+    if key := str(form.get("llm_api_key") or "").strip():
+        values["llm_api_key"] = key
+    return values
+
+
+@app.post("/setup/typesafe")
+async def save_typesafe(request: Request):
+    _cfg(request).update(_classifier_form(await request.form()))
     return _redirect("/setup", msg=_("TypeSafe-Einstellungen gespeichert"))
 
 
 @app.post("/setup/typesafe/test", response_class=HTMLResponse)
 async def test_typesafe(request: Request):
-    cfg = _cfg(request).all()
+    # testet die Werte im Formular, ohne sie zu speichern
+    cfg = {**_cfg(request).all(), **_classifier_form(await request.form())}
     if missing := classifier_missing(cfg):
         return HTMLResponse(f'<span class="bad">{html.escape(_(missing))}</span>')
     client, model = classifier(cfg, timeout=20 if cfg["classifier"] != "ollama" else 600)
@@ -918,7 +974,7 @@ async def test_typesafe(request: Request):
                 model,
             )
     except JevError as e:
-        return HTMLResponse(f'<span class="bad">{e}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
     ans = resp["answers"]["t"]
     return HTMLResponse(
         '<span class="good">'
@@ -954,15 +1010,23 @@ async def delete_instance(request: Request, instance_id: int):
 
 @app.post("/setup/instances/{instance_id}/test", response_class=HTMLResponse)
 async def test_instance(request: Request, instance_id: int):
-    inst = _cfg(request).instance(instance_id)
-    if not inst:
+    # testet URL und Token aus dem Formular, ohne sie zu speichern; ein leerer Token behält den gespeicherten
+    form = await request.form()
+    saved = _cfg(request).instance(instance_id) if instance_id else None
+    if instance_id and not saved:
         return HTMLResponse(f'<span class="bad">{_("Unbekannte Instanz")}</span>')
+    url = str(form.get("url") or (saved.url if saved else "")).strip()
+    token = str(form.get("token") or "").strip() or (saved.token if saved else "")
+    if not url or not token:
+        return HTMLResponse(f'<span class="bad">{_("API-URL und API-Token eintragen")}</span>')
+    public_url = str(form.get("public_url", saved.public_url if saved else "")).strip()
+    inst = Instance(instance_id, "test", url, public_url, token, True)
     try:
         async with PaperlessClient(inst.url, inst.token, timeout=10, host=inst.host_header) as pl:
             inbox = await pl.ping()
             meta = await pl.metadata()
     except PaperlessError as e:
-        return HTMLResponse(f'<span class="bad">{e}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
     return HTMLResponse(
         '<span class="good">'
         + _("OK - {inbox} im Posteingang, {types} Typen, {correspondents} Korrespondenten, {tags} Tags",
@@ -1025,10 +1089,9 @@ async def save_rules(request: Request):
             "system_tags": list(dict.fromkeys(t.strip() for t in str(form.get("system_tags") or "").split(",") if t.strip())),
             "title_mode": mode_title if (mode_title := str(form.get("title_mode", "off"))) in ("off", "template", "llm") else "off",
             "title_template": str(form.get("title_template") or cfg["title_template"]),
-            "llm_provider": provider if (provider := str(form.get("llm_provider", "ollama"))) in PROVIDERS else "ollama",
-            "llm_url": str(form.get("llm_url") or "").strip().rstrip("/"),
-            "llm_model": str(form.get("llm_model") or "").strip(),
-            **({"llm_api_key": key} if (key := str(form.get("llm_api_key") or "").strip()) else {}),
+            "title_instructions": str(form.get("title_instructions") or "").strip(),
+            "title_language": lang if (lang := str(form.get("title_language") or cfg["title_language"])) in TITLE_LANGUAGES else "de",
+            **_llm_form(form),
             "fields": fields,
         }
     )
@@ -1038,13 +1101,14 @@ async def save_rules(request: Request):
 
 @app.post("/rules/llm/test", response_class=HTMLResponse)
 async def test_llm(request: Request):
-    llm = LLM.from_config(_cfg(request).all())
+    # testet die Werte im Formular, ohne sie zu speichern
+    llm = LLM.from_config({**_cfg(request).all(), **_llm_form(await request.form())})
     if not llm:
-        return HTMLResponse(f'<span class="bad">{_("URL und Modell speichern, dann testen")}</span>')
+        return HTMLResponse(f'<span class="bad">{_("URL und Modell eintragen, dann testen")}</span>')
     try:
         models = await list_models(llm)
     except LLMError as e:
-        return HTMLResponse(f'<span class="bad">{e}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
     if llm.model not in models:
         return HTMLResponse(
             f'<span class="bad">{_("Modell {model} fehlt. Vorhanden: {available}", model=llm.model, available=", ".join(models) or "–")}</span>'
@@ -1406,8 +1470,7 @@ def main() -> None:
         "paperless_jev.app:app",
         host=os.environ.get("PJ_HOST", "0.0.0.0"),
         port=int(os.environ.get("PJ_PORT", "8000")),
-        proxy_headers=True,
-        forwarded_allow_ips="*",
+        proxy_headers=False,  # übernimmt ProxyHeadersMiddleware mit PJ_TRUSTED_PROXIES
     )
 
 
