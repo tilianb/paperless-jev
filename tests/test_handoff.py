@@ -93,3 +93,11 @@ def test_compatible_server_api_key(client):  # noqa: F811
     client.post("/setup/typesafe", data={"classifier_kind": "ollama", "classifier_url": "http://lux:8020", "classifier_model": "lux"})
     assert client.app.state.config.all()["classifier_api_key"] == "s3cret"
     assert "s3cret" not in client.get("/setup").text
+
+
+def test_classifier_path_is_normalised(client):  # noqa: F811
+    form = {"classifier_kind": "ollama", "classifier_url": "http://lux:8020", "classifier_model": "lux"}
+    client.post("/setup/typesafe", data={**form, "classifier_path": " v2/decide/ "})
+    assert client.app.state.config.all()["classifier_path"] == "/v2/decide"
+    client.post("/setup/typesafe", data={**form, "classifier_path": ""})
+    assert client.app.state.config.all()["classifier_path"] == "/v1/systemone"

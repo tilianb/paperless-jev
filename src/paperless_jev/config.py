@@ -31,10 +31,12 @@ DEFAULTS: dict[str, Any] = {
     # oder "ollama" (lokales Modell, z. B. clef)
     "classifier": "typesafe",
     "classifier_url": "",
+    "classifier_path": "/v1/systemone",  # Endpunkt am lokalen Server, Format System One
     "classifier_model": "clef",
     "classifier_api_key": "",  # optional, für einen System-One-Server hinter Anmeldung
     "cloudflare_account_id": "",
     "cloudflare_api_token": "",
+    "cloudflare_model": "typesafe/jev",  # oder ein anderes Entscheidungsmodell, z. B. @cf/cloudflare/clef
     # Eigene Schwellen für lokale Modelle: clef meldet tiefere Confidence als Jev.
     # Vorgaben gemessen an 43 geprüften Dokumenten (ab diesen Werten lag clef nie falsch);
     # neue Tags waren mit clef unzuverlässig -> praktisch nur noch Vorschläge.

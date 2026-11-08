@@ -51,6 +51,36 @@ async def test_cloudflare_request_and_unwrapped_result(wrapped):
 
 
 @pytest.mark.asyncio
+async def test_cloudflare_clef_uses_model_path_and_64_question_chunks():
+    sent = []
+
+    def handler(request):
+        sent.append((request.url.path, json.loads(request.content)))
+        qs = json.loads(request.content)["questions"]
+        return httpx.Response(200, json={"success": True, "result": {
+            "answers": {k: {"type": "noul", "noul": 0.5} for k in qs}, "usage": {"input_tokens": 1}}})
+
+    jev, model = classifier(cloudflare_cfg(cloudflare_model="@cf/cloudflare/clef-flash"))
+    jev._http._transport = httpx.MockTransport(handler)
+    questions = {f"tag:{i}": {"type": "noul", "instructions": "?"} for i in range(70)}
+    async with jev:
+        resp = await jev.ask("Monthly server invoice", questions, model)
+    assert [p for p, _ in sent] == ["/client/v4/accounts/acct/ai/run/@cf/cloudflare/clef-flash"] * 2
+    assert [len(b["questions"]) for _, b in sent] == [64, 6]
+    assert sent[0][1]["model"] == "clef-flash" and sent[0][1]["state"] == "Monthly server invoice"
+    assert len(resp["answers"]) == 70
+
+
+def test_setup_saves_cloudflare_model(client):  # noqa: F811
+    form = {"classifier_kind": "cloudflare", "cloudflare_account_id": "acct"}
+    client.post("/setup/typesafe", data={**form, "cloudflare_model": "@cf/cloudflare/clef"})
+    assert client.app.state.config.all()["cloudflare_model"] == "@cf/cloudflare/clef"
+    assert '<option value="@cf/cloudflare/clef" selected>' in client.get("/setup").text
+    client.post("/setup/typesafe", data={**form, "cloudflare_model": "@cf/meta/llama-3.1-8b-instruct"})
+    assert client.app.state.config.all()["cloudflare_model"] == "typesafe/jev"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("body", [
     {"success": False, "errors": [{"message": "provider failure"}]},
     {"success": True, "result": {"state": "Queued"}},

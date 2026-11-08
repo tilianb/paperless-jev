@@ -18,6 +18,12 @@ import httpx
 BASE_URL = os.environ.get("TYPESAFE_BASE_URL", "https://api.typesafe.ai")
 CLOUDFLARE_URL = "https://api.cloudflare.com"
 CLOUDFLARE_MODEL = "typesafe/jev"
+# Entscheidungsmodelle auf Workers AI (System-One-Format)
+CLOUDFLARE_MODELS = {
+    "typesafe/jev": "Jev (typesafe/jev)",
+    "@cf/cloudflare/clef": "Clef 27B (@cf/cloudflare/clef)",
+    "@cf/cloudflare/clef-flash": "Clef-flash 9B (@cf/cloudflare/clef-flash)",
+}
 # Unter Setup wählbare Klassifizierer
 CLASSIFIERS = ("typesafe", "cloudflare", "ollama")
 RETRY_STATUS = {429, 500, 502, 503, 504}
@@ -48,8 +54,9 @@ class JevClient:
     def __init__(
         self, api_key: str | None, timeout: float = 60.0, base_url: str | None = None,
         max_questions: int | None = None, keep_alive: str | None = None, max_choices: int | None = None,
-        cloudflare_account: str | None = None,
+        cloudflare_account: str | None = None, path: str = "/v1/systemone",
     ) -> None:
+        self.path = path
         # Workers AI: eigener Pfad und eine Hülle um dieselbe System-One-Antwort
         self.cloudflare_account = cloudflare_account
         if cloudflare_account:
@@ -152,8 +159,12 @@ class JevClient:
         payload: dict[str, Any] = {"state": state, "model": model, "questions": questions}
         if self.keep_alive:
             payload["keep_alive"] = self.keep_alive
-        path = "/v1/systemone"
-        if self.cloudflare_account:
+        path = self.path
+        if self.cloudflare_account and model.startswith("@cf/"):
+            # Workers-AI-eigene Modelle (clef): Modell im Pfad, Kurzname im Body, ohne Hülle
+            path = f"/client/v4/accounts/{self.cloudflare_account}/ai/run/{model}"
+            payload = {"model": model.rsplit("/", 1)[-1], "state": state, "questions": questions}
+        elif self.cloudflare_account:
             path = f"/client/v4/accounts/{self.cloudflare_account}/ai/run"
             payload = {"model": model, "input": {"state": state, "questions": questions}}
         delay = 1.0
@@ -209,12 +220,16 @@ def classifier(cfg: dict[str, Any], timeout: float | None = None) -> tuple[JevCl
     if cfg.get("classifier") == "ollama":
         # lokale Modelle sind langsamer, besonders beim ersten Laden
         client = JevClient(cfg.get("classifier_api_key") or None, timeout=timeout or 600.0, base_url=cfg["classifier_url"],
-                           max_questions=OLLAMA_MAX_QUESTIONS, keep_alive="30m", max_choices=OLLAMA_MAX_CHOICES)
+                           max_questions=OLLAMA_MAX_QUESTIONS, keep_alive="30m", max_choices=OLLAMA_MAX_CHOICES,
+                           path=cfg.get("classifier_path") or "/v1/systemone")
         client.adaptive = True
         return client, cfg["classifier_model"]
     if cfg.get("classifier") == "cloudflare":
         account, token = cloudflare_credentials(cfg)
-        return JevClient(token, timeout=timeout or 60.0, cloudflare_account=account), CLOUDFLARE_MODEL
+        model = cfg.get("cloudflare_model") or CLOUDFLARE_MODEL
+        # clef nimmt höchstens 64 Fragen pro Anfrage
+        max_questions = OLLAMA_MAX_QUESTIONS if model.startswith("@cf/") else None
+        return JevClient(token, timeout=timeout or 60.0, cloudflare_account=account, max_questions=max_questions), model
     return JevClient(cfg["typesafe_api_key"], timeout=timeout or 60.0), cfg["model"]
 
 

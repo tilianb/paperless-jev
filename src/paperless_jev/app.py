@@ -31,7 +31,7 @@ from .db import Database
 from .diagnostics import diagnostic
 from . import i18n
 from .i18n import gettext as _
-from .jev import CLASSIFIERS, USD_PER_MTOK, JevError, classifier, classifier_missing
+from .jev import CLASSIFIERS, CLOUDFLARE_MODEL, CLOUDFLARE_MODELS, USD_PER_MTOK, JevError, classifier, classifier_missing
 from .paperless import TAG_SEP, DocumentMissing, Metadata, PaperlessClient, PaperlessError
 from .processor import DOC_MISSING, TAG_TEST, TEST, Processor
 from .llm import LLM, PROVIDERS, LLMError, list_models
@@ -923,6 +923,7 @@ async def setup_page(request: Request):
         has_key=bool(cfg["typesafe_api_key"]),
         has_classifier_key=bool(cfg["classifier_api_key"]),
         has_cloudflare_token=bool(cfg["cloudflare_api_token"]),
+        cloudflare_models=CLOUDFLARE_MODELS,
         cloudflare_env={
             "account": os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""),
             "token_file": bool(os.environ.get("CLOUDFLARE_API_TOKEN_FILE")) and Path(os.environ["CLOUDFLARE_API_TOKEN_FILE"]).is_file(),
@@ -939,8 +940,10 @@ def _classifier_form(form: Any) -> dict[str, Any]:
         "model": get("model") or "jev-latest",
         "classifier": kind if (kind := get("classifier_kind", "typesafe")) in CLASSIFIERS else "typesafe",
         "classifier_url": get("classifier_url").rstrip("/"),
+        "classifier_path": f"/{path}" if (path := get("classifier_path").strip("/")) else "/v1/systemone",
         "classifier_model": get("classifier_model") or "clef",
         "cloudflare_account_id": get("cloudflare_account_id"),
+        "cloudflare_model": m if (m := get("cloudflare_model")) in CLOUDFLARE_MODELS else CLOUDFLARE_MODEL,
     }
     for key, field in (("typesafe_api_key", "api_key"), ("classifier_api_key", "classifier_api_key"),
                        ("cloudflare_api_token", "cloudflare_api_token")):
