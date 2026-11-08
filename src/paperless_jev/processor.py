@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import time
 from typing import Any
 
-from .classifier import build_request, excluded_tags, interpret, plan, render_title
+from . import correspondents
+from .classifier import JevRequest, _level, build_request, excluded_tags, interpret, plan, render_title
 from .config import SINGLE_FIELDS, Config, Instance
 from .db import Database
 from .jev import JevError, classifier, classifier_missing
@@ -40,6 +42,42 @@ def job_config(job: dict[str, Any], cfg: dict[str, Any]) -> dict[str, Any]:
     if cfg.get("classifier") == "ollama":
         cfg = {**cfg, "examples": 0, "similar_docs": 0}
     return cfg
+
+
+async def propose_correspondent(
+    jev: Any, model: str, doc: dict[str, Any], meta: Metadata, req: JevRequest,
+    response: dict[str, Any], result: dict[str, Any], cfg: dict[str, Any],
+) -> dict[str, Any]:
+    """Kein sicherer Korrespondent: Sprachmodell schlägt einen neuen vor, Jev wählt erneut mit ihm als Option."""
+    found = result["fields"].get("correspondent")
+    model_llm = LLM.from_config(cfg)
+    if (not cfg.get("suggest_correspondents") or doc.get("correspondent") or not model_llm
+            or "correspondent" not in req.questions
+            or (found and found["value"] is not None and not found.get("fallback") and found["level"] == "auto")):
+        return result
+    name = await correspondents.propose(model_llm, doc.get("content", ""))
+    question = copy.deepcopy(req.questions["correspondent"])
+    if not name or name in question["criteria"] or correspondents.existing(meta.correspondents, name) is not None:
+        return result
+    question["criteria"][name] = correspondents.NEW_CRITERION
+    second = await jev.ask(req.state, {"correspondent": question}, model)
+    answer = (second.get("answers") or {}).get("correspondent")
+    if not answer:
+        return result
+    req.options["correspondent"][name] = None
+    merged = interpret({**response, "answers": {**response.get("answers", {}), "correspondent": answer}}, req, meta, cfg)
+    merged["usage"] = {**result["usage"], "input_tokens": int(result["usage"].get("input_tokens") or 0)
+                       + int((second.get("usage") or {}).get("input_tokens") or 0)}
+    spec = cfg["fields"]["correspondent"]
+    confidence = float(answer.get("confidence", 0.0))
+    if answer.get("choice") == name and confidence >= float(spec["review"]):
+        merged["fields"]["correspondent"] = {
+            "value": None, "new_name": name, "label": name, "confidence": round(confidence, 4),
+            "level": _level(confidence, spec), "top": merged["fields"]["correspondent"]["top"],
+        }
+    return merged
+
+
 META_TTL = 300
 EXAMPLES_TTL = 3600
 MAX_ERRORS = 3
@@ -266,15 +304,20 @@ class Processor:
                 client, model = classifier(cfg)
                 async with client as jev:
                     response = await jev.ask(req.state, req.questions, model)
+                    result = interpret(response, req, meta, cfg)
+                    result = await propose_correspondent(jev, model, doc, meta, req, response, result, cfg)
 
-                result = interpret(response, req, meta, cfg)
+                mode = "dry_run" if is_test(job["source"]) else cfg["mode"]
+                proposal = result["fields"].get("correspondent") or {}
+                if (proposal.get("new_name") and proposal["level"] == "auto" and mode == "auto"
+                        and cfg.get("auto_create_correspondents")):
+                    proposal["value"] = await self.create_correspondent(inst, pl, meta, proposal["new_name"])
                 decision = plan(result, doc, cfg)
                 result["plan"] = decision
                 result["question_count"] = len(req.questions)
                 result["current"] = {
                     k: doc.get(k) for k in ("correspondent", "document_type", "storage_path", "created", "tags")
                 }
-                mode = "dry_run" if is_test(job["source"]) else cfg["mode"]
                 finished = mode == "auto" and not decision["needs_review"]
                 if cfg["title_mode"] != "off":
                     # Titel gleich mit der Analyse: im Review prüfbar, im Protokoll sichtbar
@@ -307,6 +350,15 @@ class Processor:
             self.mark_deleted(job["instance_id"], job["doc_id"])
         except (PaperlessError, JevError) as e:
             self.db.update_job(job_id, status="error", error=str(e))
+
+    async def create_correspondent(self, inst: Instance, pl: PaperlessClient, meta: Metadata, name: str) -> int:
+        """Freigegebenen Vorschlag anlegen - oder einen inzwischen gleichnamigen übernehmen."""
+        fresh = await self.metadata(inst, pl, fresh=True)
+        oid = correspondents.existing(fresh.correspondents, name)
+        if oid is None:
+            oid = await pl.create_object("correspondent", name)
+        fresh.correspondents[oid] = meta.correspondents[oid] = name
+        return oid
 
     async def _tag(self, inst: Instance, pl: PaperlessClient, meta: Metadata, name: str) -> int:
         tid = meta.tag_id(name)
@@ -440,6 +492,11 @@ class Processor:
         async with self.client(inst) as pl:
             doc = await pl.document(job["doc_id"])
             meta = await self.metadata(inst, pl)
+            if choice.get("correspondent") == "new":
+                found = ((job.get("result") or {}).get("fields", {}).get("correspondent") or {})
+                if not found.get("new_name"):
+                    raise PaperlessError("Für dieses Dokument gibt es keinen vorgeschlagenen Korrespondenten")
+                choice["correspondent"] = await self.create_correspondent(inst, pl, meta, found["new_name"])
             applied = await self.apply(inst, pl, meta, doc, choice, cfg, finished=True)
         suggested = (job.get("result") or {}).get("fields", {})
         corrections = {

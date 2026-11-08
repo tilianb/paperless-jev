@@ -10,19 +10,22 @@
   <input type="hidden" name="back" value="{{ back }}">
   {% for name, options in [("document_type", meta.document_types), ("correspondent", meta.correspondents), ("storage_path", meta.storage_paths)] %}
     {% set f = fields.get(name) %}
-    {% set selected = f.value if f and f.value else current.get(name) %}
+    {% set proposal = name == 'correspondent' and f and f.new_name %}
+    {% set selected = 'new' if proposal else (f.value if f and f.value else current.get(name)) %}
     {% if f or current.get(name) %}
     <div class="field-row">
       <input type="checkbox" name="use_{{ name }}" checked title="{{ _('Feld übernehmen') }}">
       <strong>{{ _(FIELD_LABELS[name]) }}</strong>
       <select name="{{ name }}">
         <option value="">{{ _("– leer –") }}</option>
+        {% if proposal %}<option value="new" selected>{{ _("Anlegen: {name}", name=f.new_name) }}</option>{% endif %}
         {% for oid, oname in options|dictsort(by="value") %}<option value="{{ oid }}"{% if oid == selected %} selected{% endif %}>{{ oname }}</option>{% endfor %}
       </select>
       <span>{% if f %}<span class="badge {{ f.level }}">{{ "%.0f"|format(f.confidence * 100) }} %</span>
         <div class="bar"><span style="width: {{ (f.confidence * 100)|round|int }}%"></span></div>{% else %}<small class="muted">{{ _("nicht bewertet") }}</small>{% endif %}
         {% if current.get(name) and f and f.value and f.value != current.get(name) %}<br><small class="bad">{{ _("bisher: {value}", value=options.get(current.get(name), "#" ~ current.get(name))) }}</small>{% endif %}</span>
     </div>
+    {% if proposal %}<small class="muted">{{ _("Anlegen: {name}", name=f.new_name) }} — {{ _("LLM-Vorschlag, von Jev geprüft. Wird erst beim Übernehmen angelegt.") }}</small>{% endif %}
     {% if f and f.top|length > 1 %}<small class="muted">{{ _("Alternativen") }}: {% for lbl, p in f.top[1:4] %}{{ lbl }} ({{ "%.0f"|format(p * 100) }} %){% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}
     {% endif %}
   {% endfor %}

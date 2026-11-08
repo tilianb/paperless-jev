@@ -712,6 +712,10 @@ def _review_choices(job: dict[str, Any], meta: Metadata) -> dict[str, Any]:
             "current": current.get(name),
             "value": field.get("value") if field.get("value") is not None else current.get(name),
         }
+        if field.get("new_name"):
+            # Vorschlag eines neuen Korrespondenten: als Vorschlag "new", vorausgewählt
+            choices[name]["top"].insert(0, {"id": "new", "name": field["new_name"], "p": field["confidence"]})
+            choices[name]["value"] = "new"
     return choices
 
 
@@ -859,6 +863,8 @@ async def apply_job(request: Request, job_id: int):
         if name == "created":
             if raw:
                 choice[name] = raw
+        elif name == "correspondent" and raw == "new":
+            choice[name] = "new"  # Vorschlag des Jobs, wird beim Übernehmen angelegt
         else:
             choice[name] = int(raw) if raw else None
     choice["tags_add"] = [int(t) for t in form.getlist("tags")]
@@ -1108,6 +1114,8 @@ async def save_rules(request: Request):
             "tags_force_review": "tags_force_review" in form,
             "correspondent_fallback": str(form.get("correspondent_fallback") or "").strip(),
             "fallback_review": "fallback_review" in form,
+            "suggest_correspondents": "suggest_correspondents" in form,
+            "auto_create_correspondents": "auto_create_correspondents" in form,
             "overwrite": "overwrite" in form,
             "review_conflicts": "review_conflicts" in form,
             "paperless_rules": "paperless_rules" in form,

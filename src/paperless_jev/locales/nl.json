@@ -493,5 +493,13 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare: onvolledig antwoord",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare: ongeldige tagwaarschijnlijkheid",
  "Anfrage einer fremden Seite abgewiesen": "Verzoek van een andere oorsprong geweigerd",
- "Anfrage fehlgeschlagen": "Verzoek mislukt"
+ "Anfrage fehlgeschlagen": "Verzoek mislukt",
+ "Neue Korrespondenten vom Sprachmodell vorschlagen lassen": "Laat het taalmodel nieuwe correspondenten voorstellen",
+ "Jev prüft den Vorschlag. Ab dem Review-Schwellwert wird er zur menschlichen Freigabe angezeigt; angelegt wird er erst beim Übernehmen.": "Jev controleert het voorstel. Vanaf de reviewdrempel wordt het ter goedkeuring getoond; het wordt pas bij het toepassen aangemaakt.",
+ "Neue Korrespondenten automatisch freigeben und anlegen": "Nieuwe correspondenten automatisch goedkeuren en aanmaken",
+ "Nur mit aktivierten Vorschlägen im Modus Automatisch: Jev muss mindestens den Auto-Schwellwert für Korrespondenten erreichen. Sonst bleibt die menschliche Freigabe nötig.": "Alleen met ingeschakelde voorstellen in de automatische modus: Jev moet minstens de auto-drempel voor correspondenten halen. Anders blijft goedkeuring door een mens nodig.",
+ "Für neue Korrespondenten ist ein konfiguriertes Sprachmodell erforderlich.": "Voor nieuwe correspondenten is een geconfigureerd taalmodel nodig.",
+ "Sprachmodell einrichten": "Taalmodel instellen",
+ "Anlegen: {name}": "Aanmaken: {name}",
+ "LLM-Vorschlag, von Jev geprüft. Wird erst beim Übernehmen angelegt.": "Voorstel van het LLM, gecontroleerd door Jev. Wordt pas bij het toepassen aangemaakt."
 }

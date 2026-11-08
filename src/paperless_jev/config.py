@@ -59,6 +59,10 @@ DEFAULTS: dict[str, Any] = {
     # Korrespondent, der gesetzt wird, wenn keiner der bestehenden passt
     # (Sammel-Korrespondent wie "Diverses"); leer = Feld bleibt leer.
     "correspondent_fallback": "",
+    # Neuer Korrespondent vom Sprachmodell, von Jev geprüft; angelegt erst nach Freigabe
+    # oder (auto_create) im Modus auto ab dem Auto-Schwellwert.
+    "suggest_correspondents": False,
+    "auto_create_correspondents": False,
     "overwrite": False,
     # Widerspricht Jev sicher einem vorhandenen Wert -> Review statt ignorieren
     "review_conflicts": True,

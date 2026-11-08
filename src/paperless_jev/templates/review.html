@@ -69,9 +69,10 @@
         <input type="hidden" name="{{ name }}" id="in-{{ name }}" value="{{ c.value if c.value is not none else '' }}">
         <button type="button" class="rv-row{% if f and (f.level == 'suggest' or f.fallback or f.value is none) or conflict %} warn{% endif %}" data-sheet="{{ name }}">
           <span class="rv-k">{{ _(FIELD_LABELS[name]) }}</span>
-          <span class="rv-v"><span id="lbl-{{ name }}">{{ names.get(c.value, _("– leer –")) if c.value is not none else _("– leer –") }}</span>
+          <span class="rv-v"><span id="lbl-{{ name }}">{{ _("Anlegen: {name}", name=f.new_name) if name == 'correspondent' and f and f.new_name and c.value == 'new' else (names.get(c.value, _("– leer –")) if c.value is not none else _("– leer –")) }}</span>
             {% if conflict and not (f and f.fallback) %}<small>{{ _("bisher: {value}", value=names.get(cur.get(name), "#" ~ cur.get(name))) }}</small>{% endif %}
-            {% if f and f.fallback %}<small>{{ _("kein passender gefunden – Sammel-Korrespondent; antippen, um einen anderen zu wählen oder neu anzulegen") }}</small>
+            {% if name == 'correspondent' and f and f.new_name %}<small id="correspondent-proposal-note"{% if c.value != 'new' %} hidden{% endif %}>{{ _("LLM-Vorschlag, von Jev geprüft. Wird erst beim Übernehmen angelegt.") }}</small>
+            {% elif f and f.fallback %}<small>{{ _("kein passender gefunden – Sammel-Korrespondent; antippen, um einen anderen zu wählen oder neu anzulegen") }}</small>
             {% elif f and f.value is none and name == "correspondent" %}<small>{{ _("kein passender gefunden – antippen, um einen zu wählen oder neu anzulegen") }}</small>{% endif %}</span>
           {% if f and not f.fallback %}<span class="rv-c {{ f.level if f.value is not none else 'low' }}">{{ "%.0f"|format(f.confidence * 100) }} %</span>{% elif f %}<span class="rv-c suggest">{{ _("Sammel") }}</span>{% endif %}
           <span class="rv-chev">{{ icon("more") }}</span>
@@ -155,6 +156,7 @@
   "marks": fields.values()|selectattr("value")|map(attribute="label")|list,
   "levels": fields.values()|selectattr("value")|map(attribute="level")|list,
   "t": {"now": _("heute in Paperless"), "empty": _("– leer lassen –"), "all": _("alle"), "suggestions": _("Vorschläge von Jev"),
+        "createProposal": _("Anlegen: {name}"), "proposalNote": _("LLM-Vorschlag, von Jev geprüft. Wird erst beim Übernehmen angelegt."),
         "page": _("Seite {n} / {total}"), "create": _("«{name}» neu in Paperless anlegen"), "keywords": _("Stichworte für Jev, optional"),
         "createBtn": _("Anlegen"), "created": _("«{name}» in Paperless angelegt"), "loading": _("Titel wird erzeugt …"), "requestFailed": _("Anfrage fehlgeschlagen"), "failed": _("Dokument konnte nicht angezeigt werden."), "open": _("In neuem Tab öffnen"), "exitfs": _("Schliessen")}
 }|tojson }}</script>

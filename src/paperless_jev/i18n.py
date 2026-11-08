@@ -47,6 +47,15 @@ def gettext(text: str, **kwargs: Any) -> str:
 
 
 EN: dict[str, str] = {
+    # Neue Korrespondenten: Vorschlag und ausdrückliche Freigabe
+    "Neue Korrespondenten vom Sprachmodell vorschlagen lassen": "Let the language model propose new correspondents",
+    "Jev prüft den Vorschlag. Ab dem Review-Schwellwert wird er zur menschlichen Freigabe angezeigt; angelegt wird er erst beim Übernehmen.": "Jev checks the proposal. At or above the Review threshold, it is shown for human approval; it is created only when applied.",
+    "Neue Korrespondenten automatisch freigeben und anlegen": "Automatically approve and create new correspondents",
+    "Nur mit aktivierten Vorschlägen im Modus Automatisch: Jev muss mindestens den Auto-Schwellwert für Korrespondenten erreichen. Sonst bleibt die menschliche Freigabe nötig.": "Only with proposals enabled in Automatic mode: Jev must meet the Auto threshold for correspondents. Otherwise human approval is still required.",
+    "Für neue Korrespondenten ist ein konfiguriertes Sprachmodell erforderlich.": "New correspondents require a configured language model.",
+    "Sprachmodell einrichten": "Set up language model",
+    "Anlegen: {name}": "Create: {name}",
+    "LLM-Vorschlag, von Jev geprüft. Wird erst beim Übernehmen angelegt.": "LLM proposal, checked by Jev. Created only when applied.",
     # --- Navigation, Rahmen -------------------------------------------------
     "Übersicht": "Overview",
     "Review": "Review",

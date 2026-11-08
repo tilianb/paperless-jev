@@ -198,16 +198,20 @@ const search = document.getElementById("rv-sheet-search");
 let sheetField = null;
 
 function option(id, name, extra = "", pct = null) {
+  const proposal = sheetField === "correspondent" && id === "new";
+  const label = proposal ? T.createProposal.replace("{name}", name) : name;
+  if (proposal) extra = T.proposalNote;
   const b = document.createElement("button");
   b.type = "button";
   b.className = "rv-opt" + (String(document.getElementById(`in-${sheetField}`).value) === String(id ?? "") ? " sel" : "");
   b.innerHTML = `<span class="rv-rad"></span><span class="rv-optname"></span>` +
     (pct !== null ? `<span class="rv-optbar"><span style="width:${Math.round(pct * 100)}%"></span></span><span class="rv-optpct">${Math.round(pct * 100)} %</span>` : "");
-  b.querySelector(".rv-optname").textContent = name;
+  b.querySelector(".rv-optname").textContent = label;
   if (extra) b.querySelector(".rv-optname").insertAdjacentHTML("beforeend", `<small>${extra}</small>`);
   b.addEventListener("click", () => {
     document.getElementById(`in-${sheetField}`).value = id ?? "";
-    document.getElementById(`lbl-${sheetField}`).textContent = id == null ? T.empty : name;
+    document.getElementById(`lbl-${sheetField}`).textContent = id == null ? T.empty : label;
+    if (sheetField === "correspondent") document.getElementById("correspondent-proposal-note")?.toggleAttribute("hidden", !proposal);
     sheet.close();
   });
   return b;
@@ -268,6 +272,7 @@ function createBox(name) {
       c.options.push([obj.id, obj.name]);
       document.getElementById(`in-${sheetField}`).value = obj.id;
       document.getElementById(`lbl-${sheetField}`).textContent = obj.name;
+      if (sheetField === "correspondent") document.getElementById("correspondent-proposal-note")?.setAttribute("hidden", "");
       sheet.close();
     } catch (err) {
       box.querySelector("small").textContent = err.message;

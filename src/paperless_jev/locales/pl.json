@@ -493,5 +493,13 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare: niepełna odpowiedź",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare: nieprawidłowe prawdopodobieństwo tagu",
  "Anfrage einer fremden Seite abgewiesen": "Odrzucono żądanie z innego źródła",
- "Anfrage fehlgeschlagen": "Żądanie nie powiodło się"
+ "Anfrage fehlgeschlagen": "Żądanie nie powiodło się",
+ "Neue Korrespondenten vom Sprachmodell vorschlagen lassen": "Pozwól modelowi językowemu proponować nowych korespondentów",
+ "Jev prüft den Vorschlag. Ab dem Review-Schwellwert wird er zur menschlichen Freigabe angezeigt; angelegt wird er erst beim Übernehmen.": "Jev sprawdza propozycję. Od progu przeglądu jest pokazywana do zatwierdzenia przez człowieka; tworzona jest dopiero przy zastosowaniu.",
+ "Neue Korrespondenten automatisch freigeben und anlegen": "Automatycznie zatwierdzaj i twórz nowych korespondentów",
+ "Nur mit aktivierten Vorschlägen im Modus Automatisch: Jev muss mindestens den Auto-Schwellwert für Korrespondenten erreichen. Sonst bleibt die menschliche Freigabe nötig.": "Tylko przy włączonych propozycjach w trybie automatycznym: Jev musi osiągnąć co najmniej próg auto dla korespondentów. W przeciwnym razie nadal potrzebne jest zatwierdzenie przez człowieka.",
+ "Für neue Korrespondenten ist ein konfiguriertes Sprachmodell erforderlich.": "Nowi korespondenci wymagają skonfigurowanego modelu językowego.",
+ "Sprachmodell einrichten": "Skonfiguruj model językowy",
+ "Anlegen: {name}": "Utwórz: {name}",
+ "LLM-Vorschlag, von Jev geprüft. Wird erst beim Übernehmen angelegt.": "Propozycja LLM, sprawdzona przez Jev. Tworzona dopiero przy zastosowaniu."
 }

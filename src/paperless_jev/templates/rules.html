@@ -32,6 +32,11 @@
   </table>
   </div>
   <label><input type="checkbox" name="overwrite" {% if cfg.overwrite %}checked{% endif %}> {{ _("bereits gesetzte Werte überschreiben (z. B. aus dem Paperless-eigenen Matching)") }}</label>
+  <label><input type="checkbox" name="suggest_correspondents" {% if cfg.suggest_correspondents %}checked{% endif %}> {{ _("Neue Korrespondenten vom Sprachmodell vorschlagen lassen") }}</label>
+  <p class="muted"><small>{{ _("Jev prüft den Vorschlag. Ab dem Review-Schwellwert wird er zur menschlichen Freigabe angezeigt; angelegt wird er erst beim Übernehmen.") }}
+    {{ _("Für neue Korrespondenten ist ein konfiguriertes Sprachmodell erforderlich.") }} <a href="/setup#language-model">{{ _("Sprachmodell einrichten") }}</a></small></p>
+  <label><input type="checkbox" name="auto_create_correspondents" {% if cfg.auto_create_correspondents %}checked{% endif %}> {{ _("Neue Korrespondenten automatisch freigeben und anlegen") }}</label>
+  <p class="muted"><small>{{ _("Nur mit aktivierten Vorschlägen im Modus Automatisch: Jev muss mindestens den Auto-Schwellwert für Korrespondenten erreichen. Sonst bleibt die menschliche Freigabe nötig.") }}</small></p>
   <label>{{ _("Sammel-Korrespondent, wenn keiner passt") }} <input name="correspondent_fallback" value="{{ cfg.correspondent_fallback }}" placeholder="{{ _('z. B. Diverses – leer = Feld bleibt leer') }}"></label>
   <label><input type="checkbox" name="fallback_review" {% if cfg.fallback_review %}checked{% endif %}> {{ _("Sammel-Korrespondent setzen, das Dokument aber ins Review schicken (so lässt sich ein passender Korrespondent zuweisen oder neu anlegen)") }}</label>
   <label><input type="checkbox" name="tags_force_review" {% if cfg.tags_force_review %}checked{% endif %}> {{ _("unsichere Tag-Vorschläge allein schicken ein Dokument ins Review") }}</label>
