@@ -561,6 +561,8 @@ EN: dict[str, str] = {
     "Endpunkt": "Endpoint",
     "Der Server muss unter diesem Endpunkt das System-One-Format annehmen (Vorgabe /v1/systemone, Fähigkeit «decision»). Lokale Modelle melden andere Confidence-Werte als Jev – Schwellwerte unter Regeln prüfen.":
         "The server must accept the System-One format at this endpoint (default /v1/systemone, capability \"decision\"). Local models report different confidence values than Jev – check the thresholds under Rules.",
+    "Schwellwerte für Clef «{model}» auf Cloudflare – Clef meldet tiefere Confidence-Werte als Jev und nutzt darum dieselben Schwellwerte wie lokale Modelle. Die von Jev bleiben gespeichert.":
+        "Thresholds for Clef «{model}» on Cloudflare – Clef reports lower confidence values than Jev and therefore uses the same thresholds as local models. Jev's thresholds stay saved.",
     "Ollama-URL oder Modell fehlt": "Ollama URL or model missing",
     "optional, wird als Bearer-Token gesendet": "optional, sent as a bearer token",
     "Jev oder Cloudflares Clef über das eigene Cloudflare-Konto; Jev braucht Guthaben im AI Gateway": "Jev or Cloudflare's Clef through your own Cloudflare account; Jev needs AI Gateway credits",

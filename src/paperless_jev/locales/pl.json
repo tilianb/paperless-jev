@@ -495,5 +495,6 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare: niepełna odpowiedź",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare: nieprawidłowe prawdopodobieństwo tagu",
  "Anfrage einer fremden Seite abgewiesen": "Odrzucono żądanie z innego źródła",
- "Anfrage fehlgeschlagen": "Żądanie nie powiodło się"
+ "Anfrage fehlgeschlagen": "Żądanie nie powiodło się",
+ "Schwellwerte für Clef «{model}» auf Cloudflare – Clef meldet tiefere Confidence-Werte als Jev und nutzt darum dieselben Schwellwerte wie lokale Modelle. Die von Jev bleiben gespeichert.": "Progi dla Clef «{model}» w Cloudflare – Clef zwraca niższe wartości pewności niż Jev, dlatego używa tych samych progów co modele lokalne. Progi Jev pozostają zapisane."
 }

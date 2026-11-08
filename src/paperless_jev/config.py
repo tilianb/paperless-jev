@@ -152,7 +152,9 @@ class Config:
         cfg.pop("ollama_model", None)
         if cfg["title_mode"] == "ollama":
             cfg["title_mode"] = "llm"
-        if cfg["classifier"] == "ollama":
+        # clef auf Cloudflare meldet so tiefe Confidence wie lokal - gleiche Schwellen
+        clef = cfg["classifier"] == "cloudflare" and str(cfg.get("cloudflare_model") or "").startswith("@cf/")
+        if cfg["classifier"] == "ollama" or clef:
             # aktive Schwellen = die des lokalen Modells; "fields" behält die von Jev
             cfg["jev_thresholds"] = {n: {k: s[k] for k in ("auto", "review")} for n, s in cfg["fields"].items()}
             for name, spec in cfg["local_thresholds"].items():

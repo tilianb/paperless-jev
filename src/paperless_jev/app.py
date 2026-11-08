@@ -1094,8 +1094,8 @@ async def save_rules(request: Request):
         auto = min(max(num(f"{name}_auto", spec["auto"]), 0.0), 1.0)
         review = min(max(num(f"{name}_review", spec["review"]), 0.0), auto)
         fields[name] = {"enabled": f"{name}_enabled" in form, "auto": auto, "review": review}
-        if cfg["classifier"] == "ollama":
-            # Schwellen gehören dem lokalen Modell, die von Jev bleiben unverändert
+        if "jev_thresholds" in cfg:
+            # Schwellen gehören dem lokalen Modell (bzw. clef auf Cloudflare), die von Jev bleiben unverändert
             local[name] = {"auto": auto, "review": review}
             fields[name].update(cfg["jev_thresholds"][name])
     if local:

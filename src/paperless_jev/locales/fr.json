@@ -495,5 +495,6 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare : réponse incomplète",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare : probabilité d’étiquette invalide",
  "Anfrage einer fremden Seite abgewiesen": "Requête d’origine croisée rejetée",
- "Anfrage fehlgeschlagen": "La requête a échoué"
+ "Anfrage fehlgeschlagen": "La requête a échoué",
+ "Schwellwerte für Clef «{model}» auf Cloudflare – Clef meldet tiefere Confidence-Werte als Jev und nutzt darum dieselben Schwellwerte wie lokale Modelle. Die von Jev bleiben gespeichert.": "Seuils pour Clef « {model} » sur Cloudflare – Clef renvoie des valeurs de confiance plus basses que Jev et utilise donc les mêmes seuils que les modèles locaux. Ceux de Jev sont conservés."
 }

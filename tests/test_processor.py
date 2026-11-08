@@ -838,6 +838,12 @@ def test_local_model_has_own_thresholds_and_plain_criteria(client):
     cfg.update({"classifier": "typesafe"})
     assert cfg.all()["fields"]["document_type"]["auto"] == 0.85
     assert job_config({"source": "poll"}, cfg.all())["examples"] == 5
+    # clef auf Cloudflare teilt die Schwellen der lokalen Modelle, Jev auf Cloudflare nicht
+    cfg.update({"classifier": "cloudflare", "cloudflare_model": "@cf/cloudflare/clef-flash"})
+    assert cfg.all()["fields"]["document_type"]["auto"] == 0.65
+    assert "Clef «@cf/cloudflare/clef-flash»" in client.get("/rules").text
+    cfg.update({"cloudflare_model": "typesafe/jev"})
+    assert cfg.all()["fields"]["document_type"]["auto"] == 0.85
 
 
 def test_document_deleted_elsewhere_marks_all_entries(client):

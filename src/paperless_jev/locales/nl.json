@@ -495,5 +495,6 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare: onvolledig antwoord",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare: ongeldige tagwaarschijnlijkheid",
  "Anfrage einer fremden Seite abgewiesen": "Verzoek van een andere oorsprong geweigerd",
- "Anfrage fehlgeschlagen": "Verzoek mislukt"
+ "Anfrage fehlgeschlagen": "Verzoek mislukt",
+ "Schwellwerte für Clef «{model}» auf Cloudflare – Clef meldet tiefere Confidence-Werte als Jev und nutzt darum dieselben Schwellwerte wie lokale Modelle. Die von Jev bleiben gespeichert.": "Drempelwaarden voor Clef «{model}» op Cloudflare – Clef meldt lagere zekerheidswaarden dan Jev en gebruikt daarom dezelfde drempelwaarden als lokale modellen. Die van Jev blijven bewaard."
 }

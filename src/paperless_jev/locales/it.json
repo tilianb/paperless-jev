@@ -495,5 +495,6 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare: risposta incompleta",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare: probabilità del tag non valida",
  "Anfrage einer fremden Seite abgewiesen": "Richiesta da un’altra origine rifiutata",
- "Anfrage fehlgeschlagen": "Richiesta non riuscita"
+ "Anfrage fehlgeschlagen": "Richiesta non riuscita",
+ "Schwellwerte für Clef «{model}» auf Cloudflare – Clef meldet tiefere Confidence-Werte als Jev und nutzt darum dieselben Schwellwerte wie lokale Modelle. Die von Jev bleiben gespeichert.": "Soglie per Clef «{model}» su Cloudflare – Clef riporta valori di confidenza più bassi di Jev e usa quindi le stesse soglie dei modelli locali. Quelle di Jev restano salvate."
 }

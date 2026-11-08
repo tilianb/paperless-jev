@@ -495,5 +495,6 @@
  "Cloudflare: unvollständige Antwort": "Cloudflare: respuesta incompleta",
  "Cloudflare: ungültige Tag-Wahrscheinlichkeit": "Cloudflare: probabilidad de etiqueta no válida",
  "Anfrage einer fremden Seite abgewiesen": "Solicitud de origen cruzado rechazada",
- "Anfrage fehlgeschlagen": "La solicitud ha fallado"
+ "Anfrage fehlgeschlagen": "La solicitud ha fallado",
+ "Schwellwerte für Clef «{model}» auf Cloudflare – Clef meldet tiefere Confidence-Werte als Jev und nutzt darum dieselben Schwellwerte wie lokale Modelle. Die von Jev bleiben gespeichert.": "Umbrales para Clef «{model}» en Cloudflare – Clef da valores de confianza más bajos que Jev y por eso usa los mismos umbrales que los modelos locales. Los de Jev se conservan."
 }
