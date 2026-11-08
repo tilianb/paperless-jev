@@ -18,16 +18,19 @@ from urllib.parse import urlencode, urlsplit
 
 import uvicorn
 from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
 from .auth import COOKIE as SESSION_COOKIE, MAX_AGE as SESSION_MAX_AGE, Auth
 from .classifier import excluded_tags
 from .config import FIELD_LABELS, SINGLE_FIELDS, Config, Instance
 from .db import Database
+from .diagnostics import diagnostic
 from . import i18n
 from .i18n import gettext as _
 from .jev import CLASSIFIERS, USD_PER_MTOK, JevError, classifier, classifier_missing
@@ -90,7 +93,7 @@ async def lifespan(app: FastAPI):
     processor = Processor(db, config)
     app.state.auth = Auth(ADMIN_USER, ADMIN_PASSWORD, vault.derive("session"), db)
     if not ADMIN_PASSWORD and not ALLOW_NO_LOGIN:
-        log.warning("Kein PJ_ADMIN_PASSWORD gesetzt: Oberfläche gesperrt (PJ_ALLOW_NO_LOGIN=true, falls ein vorgeschalteter Login schützt)")
+        log.warning(_("Kein PJ_ADMIN_PASSWORD gesetzt: Oberfläche gesperrt (PJ_ALLOW_NO_LOGIN=true, falls ein vorgeschalteter Login schützt)"))
     app.state.db, app.state.config, app.state.processor = db, config, processor
     await processor.start()
     yield
@@ -130,6 +133,7 @@ templates.env.globals.update(
     version=__version__,
     asset_v=int((HERE / "static" / "style.css").stat().st_mtime),
     _=_,
+    diagnostic=diagnostic,
     current_lang=i18n.current.get,
 )
 
@@ -141,13 +145,6 @@ async def frame_options(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'self'")
     return response
-
-
-@app.middleware("http")
-async def language(request: Request, call_next):
-    """Sprache für diesen Request: Cookie, sonst Browser-Einstellung."""
-    i18n.current.set(i18n.pick(request.cookies.get(i18n.COOKIE), request.headers.get("accept-language")))
-    return await call_next(request)
 
 
 @app.get("/lang/{code}")
@@ -167,8 +164,7 @@ async def require_login(request: Request, call_next):
     public = request.url.path.startswith(PUBLIC_PATHS)
     if not auth.enabled and not ALLOW_NO_LOGIN and not public:
         return Response(
-            "paperless-jev: no admin password is configured. Set PJ_ADMIN_PASSWORD, or set "
-            "PJ_ALLOW_NO_LOGIN=true if a login in front of it (e.g. Authentik) protects every request.\n",
+            _("Kein PJ_ADMIN_PASSWORD gesetzt: Oberfläche gesperrt (PJ_ALLOW_NO_LOGIN=true, falls ein vorgeschalteter Login schützt)") + "\n",
             status_code=503, media_type="text/plain",
         )
     if auth.enabled and not public:
@@ -179,7 +175,7 @@ async def require_login(request: Request, call_next):
                 return Response(status_code=401, headers={"HX-Redirect": login})
             if request.method == "GET" and "text/html" in request.headers.get("accept", ""):
                 return RedirectResponse(login, status_code=303)
-            return Response(status_code=401)
+            return JSONResponse({"detail": _("Anmeldung erforderlich")}, status_code=401)
     response = await call_next(request)
     if auth.enabled and auth.needs_renewal(token):
         _set_session(request, response, auth, token)
@@ -203,9 +199,44 @@ async def same_origin_only(request: Request, call_next):
         else:
             allowed = True
         if not allowed:
-            log.warning("Anfrage einer fremden Seite abgewiesen: %s %s (Origin %s)", request.method, request.url.path, origin)
-            return Response("Cross-origin request rejected\n", status_code=403, media_type="text/plain")
+            log.warning("%s: %s %s (Origin %s)", _("Anfrage einer fremden Seite abgewiesen"), request.method, request.url.path, origin)
+            return Response(_("Anfrage einer fremden Seite abgewiesen") + "\n", status_code=403, media_type="text/plain")
     return await call_next(request)
+
+
+@app.middleware("http")
+async def language(request: Request, call_next):
+    """Select language before authentication and CSRF errors, without leaking it to other requests."""
+    token = i18n.current.set(i18n.pick(request.cookies.get(i18n.COOKIE), request.headers.get("accept-language")))
+    try:
+        return await call_next(request)
+    finally:
+        i18n.current.reset(token)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    labels = {401: "Anmeldung erforderlich", 403: "Zugriff verweigert", 404: "Nicht gefunden",
+              500: "Interner Serverfehler"}
+    detail = labels.get(exc.status_code, "Anfrage fehlgeschlagen") if exc.detail == exc.__class__(exc.status_code).detail else exc.detail
+    return JSONResponse({"detail": diagnostic(detail)}, status_code=exc.status_code, headers=exc.headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    return JSONResponse({"detail": _("Ungültige Anfrage"),
+                         "errors": [{"loc": e["loc"], "type": e["type"]} for e in exc.errors()]}, status_code=422)
+
+
+@app.exception_handler(Exception)
+async def server_error(request: Request, exc: Exception):
+    # ServerErrorMiddleware runs outside the language middleware.
+    token = i18n.current.set(i18n.pick(request.cookies.get(i18n.COOKIE), request.headers.get("accept-language")))
+    try:
+        log.error(_("Interner Serverfehler"), exc_info=exc)
+        return JSONResponse({"detail": _("Interner Serverfehler")}, status_code=500)
+    finally:
+        i18n.current.reset(token)
 
 
 # Äusserste Schicht: Client-Adresse und Schema nur von vertrauenswürdigen Proxys
@@ -241,7 +272,7 @@ async def login(request: Request, username: str = Form(""), password: str = Form
         return _redirect(back, err=_("Zu viele Fehlversuche – bitte eine Minute warten"))
     if not auth.check(username, password):
         auth.failed(ip)
-        log.warning("Anmeldung fehlgeschlagen von %s", ip)
+        log.warning(_("Anmeldung fehlgeschlagen von {ip}", ip=ip))
         await asyncio.sleep(0.5)
         return _redirect(back, err=_("Benutzer oder Passwort falsch"))
     auth.succeeded(ip)
@@ -533,7 +564,7 @@ async def run_tag(request: Request, target: str = Form(""), dry_run: bool = Form
     try:
         count = await _proc(request).enqueue_tag(int(inst_id), int(tag_id), dry_run, titles)
     except PaperlessError as e:
-        return _redirect("/", err=str(e))
+        return _redirect("/", err=diagnostic(e))
     msg = _("{n} Dokument(e) zur Prüfung eingereiht", n=count) + (" – " + _("Probelauf, schreibt nichts") if dry_run else "")
     return _redirect("/log?status=all", msg=msg)
 
@@ -583,14 +614,14 @@ async def suggest_title(request: Request, job_id: int, format: str = "html"):
         try:
             title = await _proc(request).suggest_title(job_id, overrides)
         except (LLMError, PaperlessError) as e:
-            return JSONResponse({"error": str(e)})
+            return JSONResponse({"error": diagnostic(e)})
         return JSONResponse({"title": title} if title else {"error": _("Kein Titel erzeugt – Sprachmodell unter Regeln prüfen")})
     if _cfg(request).all()["title_mode"] == "off":
         return HTMLResponse(f'<span class="muted">{html.escape(_("Titel sind unter Regeln ausgeschaltet"))}</span>')
     try:
         title = await _proc(request).suggest_title(job_id)
     except (LLMError, PaperlessError) as e:
-        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(diagnostic(e))}</span>')
     if not title:
         return HTMLResponse(f'<span class="bad">{html.escape(_("Kein Titel erzeugt – Sprachmodell unter Regeln prüfen"))}</span>')
     t = html.escape(title, quote=True)
@@ -609,7 +640,7 @@ async def delete_document(request: Request, job_id: int):
     try:
         await _proc(request).delete_document(job_id)
     except PaperlessError as e:
-        return _redirect(f"/jobs/{job_id}", err=str(e))
+        return _redirect(f"/jobs/{job_id}", err=diagnostic(e))
     return _redirect(back, msg=_("Dokument in Paperless gelöscht (Papierkorb)"))
 
 
@@ -671,7 +702,7 @@ async def _review_context(request: Request, job: dict[str, Any]) -> dict[str, An
         async with _proc(request).client(inst) as pl:
             meta = await _proc(request).metadata(inst, pl)
     except PaperlessError as e:
-        return {"meta": None, "meta_error": str(e)}
+        return {"meta": None, "meta_error": diagnostic(e)}
     hidden = excluded_tags(meta, _cfg(request).all())
     return {
         "meta": meta,
@@ -781,7 +812,7 @@ async def scan_upload(request: Request):
         async with _proc(request).client(inst) as pl:
             task_id = await pl.post_document(content, upload.filename or "scan.pdf", ctype, title, tags)
     except PaperlessError as e:
-        return JSONResponse({"error": str(e)}, status_code=502)
+        return JSONResponse({"error": diagnostic(e)}, status_code=502)
     return JSONResponse({"task_id": task_id, "instance_id": inst.id, "size": len(content)})
 
 
@@ -795,11 +826,11 @@ async def scan_status(request: Request, instance_id: int, task_id: str):
         async with _proc(request).client(inst) as pl:
             task = await pl.task(task_id)
     except PaperlessError as e:
-        return JSONResponse({"state": "error", "error": str(e)})
+        return JSONResponse({"state": "error", "error": diagnostic(e)})
     if not task:
         return JSONResponse({"state": "queued"})
     if task["status"] in ("FAILURE", "REVOKED"):
-        return JSONResponse({"state": "error", "error": task["error"][:300]})
+        return JSONResponse({"state": "error", "error": _("Paperless-Verarbeitung fehlgeschlagen: {detail}", detail=task["error"][:300])})
     doc_id = task["document_id"]
     if task["status"] != "SUCCESS" or not doc_id:
         return JSONResponse({"state": "processing"})
@@ -866,7 +897,7 @@ async def apply_job(request: Request, job_id: int):
         _proc(request).mark_deleted(job["instance_id"], job["doc_id"])
         return _redirect(f"/jobs/{job_id}", err=_(DOC_MISSING))
     except PaperlessError as e:
-        return _redirect(f"/jobs/{job_id}", err=str(e))
+        return _redirect(f"/jobs/{job_id}", err=diagnostic(e))
     return _redirect(_local_path(str(form.get("back") or ""), "/review"), msg=_("Übernommen"))
 
 
@@ -968,7 +999,7 @@ async def test_llm(request: Request):
     try:
         models = await list_models(llm)
     except LLMError as e:
-        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(diagnostic(e))}</span>')
     if llm.model not in models:
         return HTMLResponse(
             f'<span class="bad">{_("Modell {model} fehlt. Vorhanden: {available}", model=llm.model, available=", ".join(models) or "–")}</span>'
@@ -998,7 +1029,7 @@ async def test_typesafe(request: Request):
                 model,
             )
     except JevError as e:
-        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(diagnostic(e))}</span>')
     ans = resp["answers"]["t"]
     return HTMLResponse(
         '<span class="good">'
@@ -1050,7 +1081,7 @@ async def test_instance(request: Request, instance_id: int):
             inbox = await pl.ping()
             meta = await pl.metadata()
     except PaperlessError as e:
-        return HTMLResponse(f'<span class="bad">{html.escape(str(e))}</span>')
+        return HTMLResponse(f'<span class="bad">{html.escape(diagnostic(e))}</span>')
     return HTMLResponse(
         '<span class="good">'
         + _("OK - {inbox} im Posteingang, {types} Typen, {correspondents} Korrespondenten, {tags} Tags",
@@ -1163,7 +1194,7 @@ async def descriptions_page(request: Request, instance_id: int = 0, kind: str = 
                              # mögliche Obertags: nicht sich selbst und keine eigenen Untertags (Zyklus)
                              "no_parent": ({oid} | meta.tag_descendants(oid)) if kind == "tag" else set(), **d})
         except PaperlessError as e:
-            error = str(e)
+            error = diagnostic(e)
     return _render(
         request, "descriptions.html",
         instances=instances, inst=inst, kind=kind, kinds=KINDS, rows=rows, meta_error=error, creatable=kind in CREATABLE,
@@ -1180,7 +1211,7 @@ async def _expand_later(cfg: Config, llm: LLM, instance_id: int, kind: str, oid:
     try:
         text = await describe_category(llm, kind, name, keywords, [], lang=lang)
     except LLMError as e:
-        log.info("Beschreibung für %s nicht ausformuliert: %s", name, e)
+        log.info(_("Beschreibung für {name} nicht ausformuliert: {detail}", name=name, detail=diagnostic(e)))
         return
     current = cfg.descriptions(instance_id).get((kind, oid))
     if current and current["source"] == keywords:  # inzwischen nicht von Hand geändert
@@ -1212,7 +1243,7 @@ async def create_meta(request: Request):
             parent = parent if kind == "tag" and parent in meta.tags else None
             oid = await pl.create_object(kind, name, color, parent)
     except PaperlessError as e:
-        return fail(str(e))
+        return fail(diagnostic(e))
     keywords = str(form.get("keywords") or "").strip()
     if keywords:
         # Stichworte sofort speichern, ausformulieren im Hintergrund (Sprachmodell kann langsam sein)
@@ -1246,7 +1277,7 @@ async def tag_color(request: Request):
         async with _proc(request).client(inst) as pl:
             await pl.update_object("tag", oid, {"color": color.lower()})
     except PaperlessError as e:
-        return _redirect(back, err=str(e))
+        return _redirect(back, err=diagnostic(e))
     _proc(request).forget_metadata(inst.id)
     return _redirect(back, msg=_("Farbe gespeichert"))
 
@@ -1270,7 +1301,7 @@ async def tag_parent(request: Request):
             if parent is not None:
                 await pl.add_tag_to_tagged(parent, [oid])
     except PaperlessError as e:
-        return _redirect(back, err=str(e))
+        return _redirect(back, err=diagnostic(e))
     _proc(request).forget_metadata(inst.id)
     name = meta.tags.get(oid, f"#{oid}")
     if parent is None:
@@ -1310,13 +1341,13 @@ async def nest_tags(request: Request):
                 try:
                     await pl.update_object("tag", tid, data)
                 except PaperlessError as e:
-                    failed.append(f"{item['name']}: {e}")
+                    failed.append(f"{item['name']}: {diagnostic(e)}")
                     continue
                 moved += "parent" in data
                 renamed += "name" in data
             await pl.add_tag_to_tagged(parent, list(items))
     except PaperlessError as e:
-        return _redirect(back, err=str(e))
+        return _redirect(back, err=diagnostic(e))
     _proc(request).forget_metadata(inst.id)
     msg = _("{moved} Tag(s) unter «{parent}» gehängt, {renamed} umbenannt", moved=moved, parent=parent_name, renamed=renamed)
     return _redirect(back, msg=msg, err="; ".join(failed)[:500] or None)
@@ -1336,7 +1367,7 @@ async def delete_assistant(request: Request, instance_id: int, kind: str, id: in
                 return _redirect(back, err=_("Eintrag fehlt"))
             count, sample = await pl.documents_with(kind, id)
     except PaperlessError as e:
-        return _redirect(back, err=str(e))
+        return _redirect(back, err=diagnostic(e))
     hidden = excluded_tags(meta, _cfg(request).all()) if kind == "tag" else set()
     if kind == "tag":
         if id in hidden:
@@ -1388,7 +1419,7 @@ async def delete_meta(request: Request):
                     await pl.update_object("tag", child, {"parent": meta.tag_parents.get(oid)})
             await pl.delete_object(kind, oid)
     except PaperlessError as e:
-        return _redirect(back, err=str(e))
+        return _redirect(back, err=diagnostic(e))
     _cfg(request).db.execute("DELETE FROM descriptions WHERE instance_id = ? AND kind = ? AND object_id = ?", (inst.id, kind, oid))
     _proc(request).forget_metadata(inst.id)
     if target is not None:
@@ -1428,8 +1459,8 @@ async def save_descriptions(request: Request):
                     text = await describe_category(llm, kind, name, source, examples, lang=i18n.current.get())
                     expanded += 1
                 except LLMError as e:
-                    log.warning("Description expansion failed (instance=%s, kind=%s, id=%s): %s",
-                                instance_id, kind, oid, e.public_message)
+                    log.warning(_("Beschreibung nicht ausformuliert (Instanz={instance}, Art={kind}, ID={id}): {detail}",
+                                  instance=instance_id, kind=kind, id=oid, detail=diagnostic(e)))
                     failed.append(f"{name or oid} ({_(e.public_message)})")
         _cfg(request).save_description(instance_id, kind, oid, text, active, source=source)
     msg = _("Beschreibungen gespeichert") + (_(", {n} vom Sprachmodell ausformuliert", n=expanded) if expanded else "")
@@ -1462,7 +1493,7 @@ async def webhook(request: Request, instance_name: str, token: str = ""):
         if not await _proc(request).handed_over(inst, doc_id):
             return JSONResponse({"queued": False, "job_id": None, "reason": "queue tag not set"})
     except PaperlessError as e:
-        raise HTTPException(502, str(e)) from None
+        raise HTTPException(502, diagnostic(e)) from None
     job_id = await _proc(request).enqueue(inst.id, doc_id, "webhook", force=True)
     return JSONResponse({"queued": job_id is not None, "job_id": job_id})
 

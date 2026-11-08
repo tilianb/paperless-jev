@@ -53,6 +53,8 @@ def test_htmx_and_api_requests_get_401_without_challenge(client):
     r = client.get("/", headers={"HX-Request": "true"})
     assert r.status_code == 401 and r.headers["hx-redirect"] == "/login" and "www-authenticate" not in r.headers
     assert client.post("/run", follow_redirects=False).status_code == 401
+    client.cookies.set("lang", "fr")
+    assert client.post("/run").json()["detail"] == "Connexion requise"
     assert client.get("/health").status_code == 200
     assert client.get("/static/style.css").status_code == 200
 

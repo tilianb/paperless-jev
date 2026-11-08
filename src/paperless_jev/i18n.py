@@ -597,3 +597,7 @@ for _code in LANGUAGES:
     _file = LOCALES / f"{_code}.json"
     if _file.exists():
         TRANSLATIONS[_code] = json.loads(_file.read_text(encoding="utf-8"))
+
+# Keep the diagnostic catalog separate from page copy.
+for _code, _messages in json.loads((LOCALES / "errors.json").read_text(encoding="utf-8")).items():
+    TRANSLATIONS[_code].update(_messages)
